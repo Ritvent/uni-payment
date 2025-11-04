@@ -394,6 +394,15 @@ class PaymentRequest(BaseModel):
         help_text="HMAC signature for validation"
     )
     
+    # QR Code Image - ADDED FOR QR CODE GENERATION
+    qr_code_image = models.ImageField(
+        upload_to='qr_codes/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name="QR Code Image",
+        help_text="Generated QR code for payment"
+    )
+    
     # Timestamps
     expires_at = models.DateTimeField(verbose_name="Expires At")
     paid_at = models.DateTimeField(
