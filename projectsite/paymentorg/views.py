@@ -8,6 +8,7 @@ from django.urls import reverse_lazy
 from .models import Student, Officer, Organization, FeeType, PaymentRequest, Payment, Receipt, ActivityLog
 import uuid
 from django.http import JsonResponse
+from .forms import StudentPaymentRequestForm, OfficerPaymentProcessForm, OrganizationForm, FeeTypeForm, PaymentForm, OfficerForm, StudentForm, PaymentRequestForm, VoidPaymentForm
 
 # home page
 class HomePageView(ListView):
@@ -66,7 +67,7 @@ class OfficerDashboardView(LoginRequiredMixin, ListView):
         return context
 
 # show active fees for an organization
-class OrganizationFeesView(ListView):
+class OrganizationFeesView(LoginRequiredMixin, ListView):
     model = FeeType
     context_object_name = 'active_fees'
     template_name = 'organization_fees.html'
@@ -151,11 +152,12 @@ class SearchPaymentsView(LoginRequiredMixin, ListView):
         context['date_to'] = self.request.GET.get('date_to', '')
         return context
 
-# generate QR code for payment
+# generate qr code for payment
 class GenerateQRPaymentView(LoginRequiredMixin, CreateView):
     model = PaymentRequest
-    fields = []  # We'll handle creation manually
+    form_class = StudentPaymentRequestForm
     template_name = 'generate_qr.html'
+    success_url = reverse_lazy('student_dashboard')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -166,46 +168,40 @@ class GenerateQRPaymentView(LoginRequiredMixin, CreateView):
         )
         return context
     
-    def post(self, request, *args, **kwargs):
-        try:
-            student = Student.objects.get(user=request.user)
-            fee_type_id = request.POST.get('fee_type')
-            fee_type = get_object_or_404(FeeType, id=fee_type_id)
-            
-            # generate unique queue number
-            queue_number = f"{fee_type.organization.code}-{student.id:03d}"
-            
-            # create payment request
-            payment_request = PaymentRequest.objects.create(
-                student=student,
-                organization=fee_type.organization,
-                fee_type=fee_type,
-                amount=fee_type.amount,
-                queue_number=queue_number,
-                qr_signature=str(uuid.uuid4()),
-                expires_at=timezone.now() + timezone.timedelta(hours=24)
-            )
-            
-            # log activity
-            ActivityLog.objects.create(
-                user=request.user,
-                action='QR_GENERATED',
-                description=f'Student {student.get_full_name()} generated QR for {fee_type.name}',
-                payment_request=payment_request
-            )
-            
-            messages.success(request, f'QR code generated for {fee_type.name}. Queue number: {queue_number}')
-            return redirect('student_dashboard')
-            
-        except Student.DoesNotExist:
-            messages.error(request, 'Student profile not found.')
-            return redirect('home')
+    def form_valid(self, form):
+        student = get_object_or_404(Student, user=self.request.user)
+        fee_type = form.cleaned_data['fee_type']
+        
+        # generate unique queue number
+        queue_number = f"{fee_type.organization.code}-{student.id:03d}"
+        
+        # create payment request
+        payment_request = form.save(commit=False)
+        payment_request.student = student
+        payment_request.organization = fee_type.organization
+        payment_request.amount = fee_type.amount
+        payment_request.queue_number = queue_number
+        payment_request.qr_signature = str(uuid.uuid4())
+        payment_request.expires_at = timezone.now() + timezone.timedelta(hours=24)
+        payment_request.save()
+        
+        # log activity
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action='qr_generated',
+            description=f'student {student.get_full_name()} generated qr for {fee_type.name}',
+            payment_request=payment_request
+        )
+        
+        messages.success(self.request, f'qr code generated for {fee_type.name}. queue number: {queue_number}')
+        return super().form_valid(form)
 
-# create payment record and receipt (CREATE Payment & Receipt)
+# create payment record and receipt
 class ProcessPaymentView(LoginRequiredMixin, CreateView):
     model = Payment
-    fields = ['amount_received']
+    form_class = OfficerPaymentProcessForm
     template_name = 'process_payment.html'
+    success_url = reverse_lazy('officer_dashboard')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -228,17 +224,16 @@ class ProcessPaymentView(LoginRequiredMixin, CreateView):
         )
         
         # create payment record
-        payment = Payment.objects.create(
-            payment_request=payment_request,
-            student=payment_request.student,
-            organization=payment_request.organization,
-            fee_type=payment_request.fee_type,
-            amount=payment_request.amount,
-            amount_received=form.cleaned_data['amount_received'],
-            or_number=f"OR-{uuid.uuid4().hex[:8].upper()}",
-            payment_method='CASH',
-            processed_by=officer
-        )
+        payment = form.save(commit=False)
+        payment.payment_request = payment_request
+        payment.student = payment_request.student
+        payment.organization = payment_request.organization
+        payment.fee_type = payment_request.fee_type
+        payment.amount = payment_request.amount
+        payment.or_number = f"OR-{uuid.uuid4().hex[:8].upper()}"
+        payment.payment_method = 'CASH'
+        payment.processed_by = officer
+        payment.save()
         
         # update payment request status
         payment_request.mark_as_paid()
@@ -253,20 +248,21 @@ class ProcessPaymentView(LoginRequiredMixin, CreateView):
         # log activity
         ActivityLog.objects.create(
             user=self.request.user,
-            action='PAYMENT_PROCESSED',
-            description=f'Officer processed payment OR#{payment.or_number} for {payment.student.get_full_name()}',
+            action='payment_processed',
+            description=f'officer processed payment OR#{payment.or_number} for {payment.student.get_full_name()}',
             payment=payment,
             payment_request=payment_request
         )
         
-        messages.success(self.request, f'Payment processed successfully. OR#: {payment.or_number}')
-        return redirect('officer_dashboard')
+        messages.success(self.request, f'payment processed successfully. OR#: {payment.or_number}')
+        return super().form_valid(form)
 
-# UPDATE PaymentRequest status
+# update paymentrequest status
 class CancelPaymentRequestView(LoginRequiredMixin, UpdateView):
     model = PaymentRequest
-    fields = ['status']
+    form_class = PaymentRequestForm
     template_name = 'cancel_request.html'
+    success_url = reverse_lazy('student_dashboard')
     
     def get_object(self):
         student = get_object_or_404(Student, user=self.request.user)
@@ -284,25 +280,26 @@ class CancelPaymentRequestView(LoginRequiredMixin, UpdateView):
         # log activity
         ActivityLog.objects.create(
             user=self.request.user,
-            action='PAYMENT_CANCELLED',
-            description=f'Student cancelled payment request {payment_request.queue_number}',
+            action='payment_cancelled',
+            description=f'student cancelled payment request {payment_request.queue_number}',
             payment_request=payment_request
         )
         
-        messages.success(self.request, 'Payment request cancelled successfully.')
+        messages.success(self.request, 'payment request cancelled successfully.')
         return redirect('student_dashboard')
 
-# mark payment as void with reason (UPDATE Payment status)
+# mark payment as void with reason
 class VoidPaymentView(LoginRequiredMixin, UpdateView):
     model = Payment
-    fields = ['void_reason']
+    form_class = VoidPaymentForm
     template_name = 'void_payment.html'
+    success_url = reverse_lazy('officer_dashboard')
     
     def get_object(self):
         officer = get_object_or_404(Officer, user=self.request.user)
         
         if not officer.can_void_payments:
-            messages.error(self.request, 'You do not have permission to void payments.')
+            messages.error(self.request, 'you do not have permission to void payments.')
             return redirect('officer_dashboard')
             
         return get_object_or_404(
@@ -322,18 +319,18 @@ class VoidPaymentView(LoginRequiredMixin, UpdateView):
         # log activity
         ActivityLog.objects.create(
             user=self.request.user,
-            action='PAYMENT_VOIDED',
-            description=f'Officer voided payment OR#{payment.or_number}. Reason: {form.cleaned_data["void_reason"]}',
+            action='payment_voided',
+            description=f'officer voided payment OR#{payment.or_number}. reason: {form.cleaned_data["void_reason"]}',
             payment=payment
         )
         
-        messages.success(self.request, f'Payment OR#{payment.or_number} has been voided.')
+        messages.success(self.request, f'payment OR#{payment.or_number} has been voided.')
         return redirect('officer_dashboard')
 
-# edit contact information (UPDATE Student)
+# edit contact information
 class UpdateStudentProfileView(LoginRequiredMixin, UpdateView):
     model = Student
-    fields = ['phone_number', 'email']
+    form_class = StudentForm
     template_name = 'update_profile.html'
     success_url = reverse_lazy('student_dashboard')
     
@@ -341,14 +338,12 @@ class UpdateStudentProfileView(LoginRequiredMixin, UpdateView):
         return get_object_or_404(Student, user=self.request.user)
     
     def form_valid(self, form):
-        # log activity
         ActivityLog.objects.create(
             user=self.request.user,
-            action='PROFILE_UPDATED',
-            description='Student updated their profile information'
+            action='profile_updated',
+            description='student updated their profile information'
         )
-        
-        messages.success(self.request, 'Profile updated successfully.')
+        messages.success(self.request, 'profile updated successfully.')
         return super().form_valid(form)
 
 # delete payment request
@@ -372,15 +367,15 @@ class DeletePaymentRequestView(LoginRequiredMixin, DeleteView):
         # log activity before deletion
         ActivityLog.objects.create(
             user=request.user,
-            action='PAYMENT_REQUEST_DELETED',
-            description=f'Student deleted payment request {payment_request.queue_number}',
+            action='payment_request_deleted',
+            description=f'student deleted payment request {payment_request.queue_number}',
             payment_request=payment_request
         )
         
-        messages.success(request, 'Payment request deleted successfully.')
+        messages.success(request, 'payment request deleted successfully.')
         return super().delete(request, *args, **kwargs)
 
- #  return JSON data for student payments status
+# return json data for student payments status
 class PaymentStatusAPIView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         try:
@@ -402,4 +397,88 @@ class PaymentStatusAPIView(LoginRequiredMixin, View):
             }
             return JsonResponse(data)
         except Student.DoesNotExist:
-            return JsonResponse({'error': 'Student profile not found'}, status=404)
+            return JsonResponse({'error': 'student profile not found'}, status=404)
+
+# organization crud views
+class CreateOrganizationView(LoginRequiredMixin, CreateView):
+    model = Organization
+    form_class = OrganizationForm
+    template_name = 'create_organization.html'
+    success_url = reverse_lazy('home')
+
+class UpdateOrganizationView(LoginRequiredMixin, UpdateView):
+    model = Organization
+    form_class = OrganizationForm
+    template_name = 'update_organization.html'
+    success_url = reverse_lazy('home')
+
+class DeleteOrganizationView(LoginRequiredMixin, DeleteView):
+    model = Organization
+    template_name = 'delete_organization.html'
+    success_url = reverse_lazy('home')
+
+# feetype crud views
+class CreateFeeTypeView(LoginRequiredMixin, CreateView):
+    model = FeeType
+    form_class = FeeTypeForm
+    template_name = 'create_feetype.html'
+    success_url = reverse_lazy('home')
+
+class UpdateFeeTypeView(LoginRequiredMixin, UpdateView):
+    model = FeeType
+    form_class = FeeTypeForm
+    template_name = 'update_feetype.html'
+    success_url = reverse_lazy('home')
+
+class DeleteFeeTypeView(LoginRequiredMixin, DeleteView):
+    model = FeeType
+    template_name = 'delete_feetype.html'
+    success_url = reverse_lazy('home')
+
+# officer crud views
+class CreateOfficerView(LoginRequiredMixin, CreateView):
+    model = Officer
+    form_class = OfficerForm
+    template_name = 'create_officer.html'
+    success_url = reverse_lazy('home')
+
+class UpdateOfficerView(LoginRequiredMixin, UpdateView):
+    model = Officer
+    form_class = OfficerForm
+    template_name = 'update_officer.html'
+    success_url = reverse_lazy('home')
+
+class DeleteOfficerView(LoginRequiredMixin, DeleteView):
+    model = Officer
+    template_name = 'delete_officer.html'
+    success_url = reverse_lazy('home')
+
+# student crud views
+class CreateStudentView(LoginRequiredMixin, CreateView):
+    model = Student
+    form_class = StudentForm
+    template_name = 'create_student.html'
+    success_url = reverse_lazy('home')
+
+class DeleteStudentView(LoginRequiredMixin, DeleteView):
+    model = Student
+    template_name = 'delete_student.html'
+    success_url = reverse_lazy('home')
+
+# payment crud views
+class CreatePaymentView(LoginRequiredMixin, CreateView):
+    model = Payment
+    form_class = PaymentForm
+    template_name = 'create_payment.html'
+    success_url = reverse_lazy('home')
+
+class UpdatePaymentView(LoginRequiredMixin, UpdateView):
+    model = Payment
+    form_class = PaymentForm
+    template_name = 'update_payment.html'
+    success_url = reverse_lazy('home')
+
+class DeletePaymentView(LoginRequiredMixin, DeleteView):
+    model = Payment
+    template_name = 'delete_payment.html'
+    success_url = reverse_lazy('home')
