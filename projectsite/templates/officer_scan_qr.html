@@ -107,20 +107,58 @@ function onScanFailure(error) {
 }
 
 function startScanner() {
-    html5QrcodeScanner = new Html5Qrcode("qr-reader");
-    html5QrcodeScanner.start(
-        { facingMode: "environment" },
-        {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
-        },
-        onScanSuccess,
-        onScanFailure
-    ).catch(err => {
-        document.getElementById('error-message').innerHTML = 
-            '<i class="fas fa-exclamation-triangle me-2"></i><strong>Camera Error:</strong> ' + err;
-        document.getElementById('error-message').style.display = 'block';
-    });
+    // Clear any previous scanner instance
+    if (html5QrcodeScanner) {
+        try {
+            html5QrcodeScanner.stop();
+        } catch (e) {
+            // Already stopped
+        }
+    }
+    
+    // Show scanner container
+    document.getElementById('qr-reader').style.display = 'block';
+    document.getElementById('error-message').style.display = 'none';
+    
+    try {
+        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+        
+        // Request camera with explicit constraints
+        html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            onScanSuccess,
+            onScanFailure
+        ).catch(err => {
+            handleScannerError(err);
+        });
+    } catch (err) {
+        handleScannerError(err);
+    }
+}
+
+function handleScannerError(err) {
+    let errorMessage = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Camera Access Error:</strong> ';
+    let errorStr = err.toString().toLowerCase();
+    
+    if (errorStr.includes('notallowederror') || errorStr.includes('permission denied')) {
+        errorMessage += '<br><br>Camera access was denied. <strong>Steps to fix:</strong><ul class="text-start mt-2"><li>Check your browser settings and enable camera access for this site</li><li>If you see a permission prompt, click "Allow"</li><li>On some browsers, you may need to refresh the page after allowing camera access</li><li>Go to browser settings > Privacy > Camera and ensure this site is allowed to access the camera</li></ul>';
+    } else if (errorStr.includes('notfounderror') || errorStr.includes('no camera') || errorStr.includes('no mediadevices')) {
+        errorMessage += 'No camera found on this device. Please ensure your device has a working camera connected.';
+    } else if (errorStr.includes('notreadableerror')) {
+        errorMessage += 'Camera is in use by another application. Please close other apps using the camera (Zoom, Teams, etc.) and try again.';
+    } else if (errorStr.includes('https')) {
+        errorMessage += 'This feature requires HTTPS. In production, access this site via HTTPS.';
+    } else {
+        errorMessage += err;
+    }
+    
+    document.getElementById('error-message').innerHTML = errorMessage;
+    document.getElementById('error-message').style.display = 'block';
+    document.getElementById('qr-reader').style.display = 'none';
 }
 
 // Start scanner when page loads
