@@ -1919,19 +1919,28 @@ class AcademicYearConfigDeleteView(StaffRequiredMixin, DeleteView):
         return context
 
 # receipt views
-class ReceiptListView(SuperOfficerOrStaffMixin, ListView):
+class ReceiptListView(LoginRequiredMixin, ListView):
     model = Receipt
     template_name = 'admin/receipt_list.html'
     context_object_name = 'receipts'
     paginate_by = 30
     
     def get_queryset(self):
+        user = self.request.user
+        
+        # Students see only their own receipts
+        if hasattr(user, 'student_profile'):
+            return Receipt.objects.filter(
+                payment__student=user.student_profile
+            ).select_related('payment', 'payment__student', 'payment__organization').order_by('-created_at')
+        
+        # Officers and admins can see receipts from their organization
         queryset = Receipt.objects.select_related('payment', 'payment__student', 'payment__organization').all()
         
-        # Filter by organization if super officer
-        org = self.get_user_organization()
-        if org:
-            queryset = queryset.filter(payment__organization=org)
+        if hasattr(user, 'officer_profile'):
+            org = user.officer_profile.organization
+            if org:
+                queryset = queryset.filter(payment__organization=org)
         
         or_search = self.request.GET.get('or_number')
         if or_search:
