@@ -113,7 +113,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const amountReceivedInput = document.getElementById('id_amount_received');
         const changeDisplay = document.getElementById('change_display');
-        const amountDue = parseFloat('{{ request.amount|unlocalize }}'); 
+        const amountDue = parseFloat('{{ request.amount }}'); 
         
         function calculateChange() {
             const cashReceived = parseFloat(amountReceivedInput.value) || 0;
