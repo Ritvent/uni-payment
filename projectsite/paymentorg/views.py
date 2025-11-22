@@ -1752,28 +1752,39 @@ class OfficerDeleteView(SuperOfficerOrStaffMixin, DeleteView):
         return context
 
 # payment request management
-class PaymentRequestListView(SuperOfficerOrStaffMixin, ListView):
+class PaymentRequestListView(LoginRequiredMixin, ListView):
     model = PaymentRequest
     template_name = 'admin/paymentrequest_list.html'
     context_object_name = 'payment_requests'
     paginate_by = 30
     
     def get_queryset(self):
+        user = self.request.user
+        
+        # Students see only their own payment requests
+        if hasattr(user, 'student_profile'):
+            return PaymentRequest.objects.filter(
+                student=user.student_profile
+            ).select_related('student', 'organization', 'fee_type').order_by('-created_at')
+        
+        # Officers and admins
         queryset = PaymentRequest.objects.select_related(
             'student', 'organization', 'fee_type'
         ).all()
         
-        # Filter by organization if super officer
-        org = self.get_user_organization()
-        if org:
-            queryset = queryset.filter(organization=org)
+        # Filter by organization if officer
+        if hasattr(user, 'officer_profile'):
+            org = user.officer_profile.organization
+            if org:
+                accessible_org_ids = org.get_accessible_organization_ids()
+                queryset = queryset.filter(organization_id__in=accessible_org_ids)
         
         status_filter = self.request.GET.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
         org_filter = self.request.GET.get('organization')
-        if org_filter and not org:  # Only allow filtering if staff
+        if org_filter and user.is_staff:  # Only allow filtering if staff
             queryset = queryset.filter(organization_id=org_filter)
         
         return queryset.order_by('-created_at')
@@ -1791,39 +1802,56 @@ class PaymentRequestListView(SuperOfficerOrStaffMixin, ListView):
             context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class PaymentRequestDetailView(SuperOfficerOrStaffMixin, DetailView):
+class PaymentRequestDetailView(LoginRequiredMixin, DetailView):
     model = PaymentRequest
     template_name = 'admin/paymentrequest_detail.html'
     context_object_name = 'request'
     
     def get_object(self, queryset=None):
         payment_request = super().get_object(queryset)
-        # Check if officer has access to this payment request
-        if not self.request.user.is_staff:
-            if hasattr(self.request.user, 'officer_profile'):
-                accessible_org_ids = self.request.user.officer_profile.organization.get_accessible_organization_ids()
-                if payment_request.organization_id not in accessible_org_ids:
-                    raise Http404("Payment request not found in your organization")
+        user = self.request.user
+        
+        # Students can only view their own payment requests
+        if hasattr(user, 'student_profile'):
+            if payment_request.student != user.student_profile:
+                raise Http404("Payment request not found")
+        # Officers can only view payment requests from their organization
+        elif hasattr(user, 'officer_profile'):
+            accessible_org_ids = user.officer_profile.organization.get_accessible_organization_ids()
+            if payment_request.organization_id not in accessible_org_ids:
+                raise Http404("Payment request not found in your organization")
+        # Superusers can see all
+        elif not user.is_superuser:
+            raise Http404("Payment request not found")
+        
         return payment_request
 
 # payment management
-class PaymentListView(SuperOfficerOrStaffMixin, ListView):
+class PaymentListView(LoginRequiredMixin, ListView):
     model = Payment
     template_name = 'admin/payment_list.html'
     context_object_name = 'payments'
     paginate_by = 30
     
     def get_queryset(self):
+        user = self.request.user
+        
+        # Students see only their own payments
+        if hasattr(user, 'student_profile'):
+            return Payment.objects.filter(
+                student=user.student_profile
+            ).select_related('student', 'organization', 'fee_type', 'processed_by').order_by('-created_at')
+        
+        # Officers and admins
         queryset = Payment.objects.select_related(
             'student', 'organization', 'fee_type', 'processed_by'
         ).all()
         
         # Filter by organization if officer (using organization hierarchy)
-        if not self.request.user.is_staff:
-            if hasattr(self.request.user, 'officer_profile'):
-                # Get all accessible organizations (including child orgs)
-                accessible_org_ids = self.request.user.officer_profile.organization.get_accessible_organization_ids()
-                queryset = queryset.filter(organization_id__in=accessible_org_ids)
+        if hasattr(user, 'officer_profile'):
+            # Get all accessible organizations (including child orgs)
+            accessible_org_ids = user.officer_profile.organization.get_accessible_organization_ids()
+            queryset = queryset.filter(organization_id__in=accessible_org_ids)
         
         status_filter = self.request.GET.get('status')
         if status_filter:
@@ -1836,7 +1864,7 @@ class PaymentListView(SuperOfficerOrStaffMixin, ListView):
             queryset = queryset.filter(is_void=False)
         
         org_filter = self.request.GET.get('organization')
-        if org_filter and self.request.user.is_staff:  # Only allow filtering if staff
+        if org_filter and user.is_staff:  # Only allow filtering if staff
             queryset = queryset.filter(organization_id=org_filter)
         
         date_from = self.request.GET.get('date_from')
@@ -1864,17 +1892,28 @@ class PaymentListView(SuperOfficerOrStaffMixin, ListView):
             context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class PaymentDetailView(SuperOfficerOrStaffMixin, DetailView):
+class PaymentDetailView(LoginRequiredMixin, DetailView):
     model = Payment
     template_name = 'admin/payment_detail.html'
     context_object_name = 'payment'
     
     def get_object(self, queryset=None):
         payment = super().get_object(queryset)
-        # Check if super officer has access to this payment
-        org = self.get_user_organization()
-        if org and payment.organization != org:
-            raise Http404("Payment not found in your organization")
+        user = self.request.user
+        
+        # Students can only view their own payments
+        if hasattr(user, 'student_profile'):
+            if payment.student != user.student_profile:
+                raise Http404("Payment not found")
+        # Officers can only view payments from their organization
+        elif hasattr(user, 'officer_profile'):
+            accessible_org_ids = user.officer_profile.organization.get_accessible_organization_ids()
+            if payment.organization_id not in accessible_org_ids:
+                raise Http404("Payment not found in your organization")
+        # Superusers can see all
+        elif not user.is_superuser:
+            raise Http404("Payment not found")
+        
         return payment
 
 # academic year config crud
