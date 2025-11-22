@@ -88,6 +88,33 @@ def create_promotion_authority_officers():
             'role': 'Program Head',
             'description': 'Can promote/demote in Computer Science only',
             'program_affiliation': 'COMPUTER_SCIENCE'
+        },
+        {
+            'org_name': 'Environmental Science',
+            'org_code': 'ENVSCIENCE',
+            'org_level': 'PROGRAM',
+            'parent_org_code': 'ALLORG',
+            'username': 'envscience_officer',
+            'password': 'EnvScience@123',
+            'first_name': 'EnvScience',
+            'last_name': 'Officer',
+            'employee_id': 'ENVSCIENCE_001',
+            'role': 'Program Head',
+            'description': 'Can promote/demote in Environmental Science only',
+            'program_affiliation': 'ENVIRONMENTAL_SCIENCE'
+        },
+        {
+            'org_name': 'Compendium',
+            'org_code': 'COMPENDIUM',
+            'org_level': 'COLLEGE',
+            'username': 'compendium_officer',
+            'password': 'Compendium@123',
+            'first_name': 'Compendium',
+            'last_name': 'Officer',
+            'employee_id': 'COMPENDIUM_001',
+            'role': 'College Publication Editor',
+            'description': 'Can promote/demote in Compendium (college publication)',
+            'program_affiliation': 'COMPENDIUM'
         }
     ]
     
@@ -256,6 +283,16 @@ def create_promotion_authority_officers():
        - Should see: Only Computer Science students/officers
        - Can promote: Only within Computer Science
     
+    6. Test Program-Level Access - Environmental Science:
+       - Login as: envscience_officer (EnvScience@123)
+       - Should see: Only Environmental Science students/officers
+       - Can promote: Only within Environmental Science
+    
+    7. Test College-Level Access - Compendium:
+       - Login as: compendium_officer (Compendium@123)
+       - Should see: Only Compendium students/officers
+       - Can promote: Only within Compendium
+    
     🔒 SECURITY VERIFICATION:
     
     ✓ Try accessing other program's data as program officer → Should be denied
@@ -292,10 +329,14 @@ def create_promotion_authority_officers():
     ├── Medical Biology (PROGRAM LEVEL)
     ├── Marine Biology (PROGRAM LEVEL)
     ├── Information Technology (PROGRAM LEVEL)
-    └── Computer Science (PROGRAM LEVEL)
+    ├── Computer Science (PROGRAM LEVEL)
+    └── Environmental Science (PROGRAM LEVEL)
+    
+    Compendium (COLLEGE LEVEL - College Publication)
     
     All officers at program level have access to their program only.
     All organization admin (all_org_officer) has access to all organizations.
+    Compendium officer has access to Compendium only.
     """)
     
     print("="*80 + "\n")
