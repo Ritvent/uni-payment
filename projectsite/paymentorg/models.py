@@ -366,6 +366,16 @@ class Officer(BaseModel):
         default=False,
         verbose_name="Can Generate Reports"
     )
+    can_promote_officers = models.BooleanField(
+        default=False,
+        verbose_name="Can Promote Officers",
+        help_text="Allow this officer to promote students to officers and grant promotion permissions"
+    )
+    is_super_officer = models.BooleanField(
+        default=False,
+        verbose_name="Super Officer",
+        help_text="Can access admin data for all students under this organization"
+    )
     
     # Contact
     email = models.EmailField(verbose_name="Email Address")
@@ -393,7 +403,17 @@ class Organization(BaseModel):
     Supports two-tiered fee system:
     - TIER_1: Program Affiliation Fees (specific to academic programs)
     - TIER_2: College-Based Organization Fees (mandatory for all students)
+    
+    Supports organizational hierarchy:
+    - College-level organizations can have program-level child organizations
+    - Officers at parent level can access and manage child organization data
     """
+    HIERARCHY_LEVEL_CHOICES = [
+        ('COLLEGE', 'College Level'),
+        ('PROGRAM', 'Program Level'),
+        ('CLUB', 'Club/Organization Level'),
+    ]
+    
     FEE_TIER_CHOICES = [
         ('TIER_1', 'Tier 1: Program Affiliation Fees'),
         ('TIER_2', 'Tier 2: College-Based Organization Fees'),
@@ -412,6 +432,24 @@ class Organization(BaseModel):
         max_length=200, 
         unique=True, 
         verbose_name="Organization Name"
+    )
+    
+    # Organizational Hierarchy
+    hierarchy_level = models.CharField(
+        max_length=20,
+        choices=HIERARCHY_LEVEL_CHOICES,
+        default='PROGRAM',
+        verbose_name="Organization Level",
+        help_text="Indicates the hierarchical level (College, Program, or Club)"
+    )
+    parent_organization = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='child_organizations',
+        verbose_name="Parent Organization",
+        help_text="For programs: set to their parent college. Null for college-level organizations."
     )
     code = models.CharField(
         max_length=20,
@@ -506,6 +544,22 @@ class Organization(BaseModel):
     def get_pending_requests_count(self):
         """Get count of pending payment requests"""
         return self.payment_requests.filter(status='PENDING').count()
+    
+    def get_all_child_organizations(self):
+        """Get all child organizations recursively (for parent-level orgs)"""
+        children = list(self.child_organizations.all())
+        for child in list(self.child_organizations.all()):
+            children.extend(child.get_all_child_organizations())
+        return children
+    
+    def get_accessible_organizations(self):
+        """Get this organization and all its children (if any)"""
+        return [self] + self.get_all_child_organizations()
+    
+    def get_accessible_organization_ids(self):
+        """Get list of organization IDs accessible from this org (self + children)"""
+        orgs = self.get_accessible_organizations()
+        return [org.id for org in orgs]
     
     def get_logo_path(self):
         """Get the static path to the organization logo"""

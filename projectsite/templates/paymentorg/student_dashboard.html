@@ -54,12 +54,30 @@
                         {% endif %}
                     </p>
                 </div>
-                <div class="bg-white rounded-2xl p-6 shadow-lg border-2 border-green-200">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i data-lucide="id-card" class="w-5 h-5 text-green-600"></i>
-                        <p class="text-sm font-semibold text-gray-600">Student ID</p>
+                <div class="space-y-3">
+                    {% if user.user_profile.is_officer or user.is_superuser %}
+                    <!-- Role Switcher -->
+                    <div class="bg-white rounded-2xl p-3 shadow-lg border-2 border-gray-200">
+                        <div class="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+                            <a href="{% url 'officer_dashboard' %}" class="px-3 py-2 text-gray-600 font-semibold rounded-lg hover:bg-white transition-all flex items-center gap-2 text-sm">
+                                <i data-lucide="briefcase" class="w-4 h-4"></i>
+                                Officer
+                            </a>
+                            <button class="px-3 py-2 bg-white text-gray-900 font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 text-sm">
+                                <i data-lucide="book-open" class="w-4 h-4"></i>
+                                Student
+                            </button>
+                        </div>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900">{{ student.student_id_number }}</p>
+                    {% endif %}
+                    <!-- Student ID -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border-2 border-green-200">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="id-card" class="w-5 h-5 text-green-600"></i>
+                            <p class="text-sm font-semibold text-gray-600">Student ID</p>
+                        </div>
+                        <p class="text-2xl font-bold text-gray-900">{{ student.student_id_number }}</p>
+                    </div>
                 </div>
             </div>
             

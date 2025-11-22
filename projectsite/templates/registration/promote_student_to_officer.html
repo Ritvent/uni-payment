@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Promote Student to Officer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-primary">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0"><i class="fas fa-user-shield me-2"></i>Promote Student to Officer</h2>
+                <p class="mb-0 small mt-2 text-light">Select an active student and assign officer permissions</p>
+            </div>
+            <div class="card-body p-4">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <h5 class="mb-3 text-primary"><i class="fas fa-id-badge me-2"></i>Student Selection</h5>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="{{ form.student.id_for_label }}" class="form-label fw-bold">
+                                {{ form.student.label }}
+                            </label>
+                            {{ form.student }}
+                            <small class="form-text text-muted d-block mt-1">
+                                {{ form.student.help_text|safe }}
+                            </small>
+                            {% for error in form.student.errors %}
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-building me-2"></i>Officer Assignment</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.organization.id_for_label }}" class="form-label fw-bold">
+                                {{ form.organization.label }}
+                            </label>
+                            {{ form.organization }}
+                            {% for error in form.organization.errors %}
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.role.id_for_label }}" class="form-label fw-bold">
+                                {{ form.role.label }}
+                            </label>
+                            {{ form.role }}
+                            <small class="form-text text-muted d-block mt-1">
+                                e.g., Finance Officer, Senior Officer, Manager
+                            </small>
+                            {% for error in form.role.errors %}
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-lock me-2"></i>Permissions</h5>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="form-check mb-3">
+                                        <input 
+                                            class="form-check-input" 
+                                            type="checkbox" 
+                                            id="{{ form.can_process_payments.id_for_label }}" 
+                                            name="can_process_payments"
+                                            {% if form.can_process_payments.value %}checked{% endif %}
+                                        >
+                                        <label class="form-check-label fw-bold" for="{{ form.can_process_payments.id_for_label }}">
+                                            {{ form.can_process_payments.label }}
+                                        </label>
+                                        <small class="form-text text-muted d-block mt-1">
+                                            Allow this officer to process student payments and QR scans
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="form-check">
+                                        <input 
+                                            class="form-check-input" 
+                                            type="checkbox" 
+                                            id="{{ form.can_void_payments.id_for_label }}" 
+                                            name="can_void_payments"
+                                            {% if form.can_void_payments.value %}checked{% endif %}
+                                        >
+                                        <label class="form-check-label fw-bold" for="{{ form.can_void_payments.id_for_label }}">
+                                            {{ form.can_void_payments.label }}
+                                        </label>
+                                        <small class="form-text text-muted d-block mt-1">
+                                            Allow this officer to void/refund processed payments
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="alert alert-info" role="alert">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> The selected student will retain their student profile and fees. 
+                                They will gain officer access in addition to their student account.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">
+                        <i class="fas fa-user-shield me-2"></i>Promote to Officer
+                    </button>
+                    <a href="{% url 'officer_list' %}" class="btn btn-outline-secondary w-100 mt-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Officers
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-select {
+        border-color: #dee2e6;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .card-header {
+        border-bottom: 2px solid #0d6efd;
+    }
+    
+    .text-primary {
+        color: #0d6efd !important;
+    }
+</style>
+{% endblock %}

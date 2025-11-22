@@ -254,6 +254,88 @@ class OfficerRegistrationForm(UserCreationForm):
             )
         return user
 
+class PromoteStudentToOfficerForm(forms.Form):
+    """Form for admins to promote existing students to officer access"""
+    student = forms.ModelChoiceField(
+        queryset=Student.objects.filter(is_active=True),
+        label="Select Student to Promote",
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
+        help_text="Choose an active student to promote to officer"
+    )
+    organization = forms.ModelChoiceField(
+        queryset=Organization.objects.filter(is_active=True),
+        label="Assign to Organization",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="Which organization will this officer work for?"
+    )
+    role = forms.CharField(
+        max_length=50,
+        label="Role/Position",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Cashier, Finance Officer'
+        }),
+        help_text="What is their position/role?"
+    )
+    can_process_payments = forms.BooleanField(
+        label="Can Process Payments",
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    can_void_payments = forms.BooleanField(
+        label="Can Void Payments",
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text="Allow this officer to void/cancel payments?"
+    )
+    can_promote_officers = forms.BooleanField(
+        label="Can Promote Officers",
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text="Allow this officer to promote other students and manage officers in their organization?"
+    )
+    
+    def clean_student(self):
+        student = self.cleaned_data['student']
+        user = student.user
+        
+        # Check if already promoted to officer
+        if hasattr(user, 'user_profile') and user.user_profile.is_officer:
+            raise ValidationError("This student is already an officer.")
+        elif hasattr(user, 'officer_profile'):
+            raise ValidationError("This student is already an officer.")
+        
+        return student
+
+
+class DemoteOfficerToStudentForm(forms.Form):
+    """Form for admins/officers to demote officers back to student status"""
+    officer = forms.ModelChoiceField(
+        queryset=Officer.objects.filter(is_active=True),
+        label="Select Officer to Demote",
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
+        help_text="Choose an active officer to demote to student-only status"
+    )
+    reason = forms.CharField(
+        max_length=500,
+        label="Reason for Demotion",
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'e.g., Term ended, Performance issues, Resignation'
+        }),
+        help_text="Why is this officer being demoted?"
+    )
+    
+    def clean_officer(self):
+        officer = self.cleaned_data['officer']
+        if not hasattr(officer.user, 'officer_profile'):
+            raise ValidationError("This person doesn't have an officer profile to demote.")
+        return officer
+
 # ==================== core forms ====================
 class StudentPaymentRequestForm(forms.ModelForm):
     # student creates payment request (officer picks payment method)

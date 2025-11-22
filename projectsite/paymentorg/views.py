@@ -28,7 +28,7 @@ from .forms import (
     StudentPaymentRequestForm, OfficerPaymentProcessForm, OrganizationForm, 
     FeeTypeForm, StudentForm, OfficerForm, VoidPaymentForm,
     StudentRegistrationForm, OfficerRegistrationForm, AcademicYearConfigForm,
-    BulkPaymentPostForm
+    BulkPaymentPostForm, PromoteStudentToOfficerForm, DemoteOfficerToStudentForm
 )
 from .utils import send_receipt_email
 
@@ -163,10 +163,303 @@ class OfficerRegistrationView(LoginRequiredMixin, UserPassesTestMixin, CreateVie
         messages.error(self.request, "Registration failed due to errors. Please check the form fields.")
         return super().form_invalid(form)
 
-# mixins
+class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Admin/Officer view to promote existing students to officer access"""
+    template_name = 'registration/promote_student_to_officer.html'
+    
+    def test_func(self):
+        user = self.request.user
+        # Allow staff/superusers
+        if user.is_staff:
+            return True
+        # Allow officers with promotion authority
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_promote_officers
+        return False
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Administrator or Officer with promotion authority required.")
+        return redirect('login')
+    
+    def get_accessible_students(self):
+        """Get students accessible to this user based on their organization"""
+        user = self.request.user
+        
+        if user.is_staff:
+            # Staff can see all students
+            return Student.objects.filter(is_active=True)
+        
+        if hasattr(user, 'officer_profile'):
+            # Officer can only see students from their organization(s)
+            officer = user.officer_profile
+            accessible_orgs = officer.organization.get_accessible_organizations()
+            
+            # Build a query for students based on accessible organizations
+            students_query = Student.objects.filter(is_active=True)
+            
+            # Filter by program affiliation matching organization's affiliation
+            q_filter = Q()
+            for org in accessible_orgs:
+                if org.program_affiliation == 'ALL':
+                    # Organization serves all programs
+                    # Check if it's a college-level org or program under a college
+                    if org.hierarchy_level == 'COLLEGE':
+                        # Top-level college org - can access all students
+                        # No filter needed, return all
+                        return students_query
+                    else:
+                        # Program-level org under college with 'ALL' affiliation - shouldn't happen
+                        # but include all just in case
+                        q_filter |= Q(is_active=True)
+                else:
+                    # Program-specific org - match course.program_type
+                    program_type = org.program_affiliation
+                    q_filter |= Q(course__program_type=program_type)
+            
+            if q_filter:
+                students_query = students_query.filter(q_filter)
+            
+            return students_query.distinct()
+        
+        return Student.objects.none()
+    
+    def get_accessible_organizations(self):
+        """Get organizations accessible to this user"""
+        user = self.request.user
+        
+        if user.is_staff:
+            from paymentorg.models import Organization
+            return Organization.objects.filter(is_active=True)
+        
+        if hasattr(user, 'officer_profile'):
+            officer = user.officer_profile
+            return officer.organization.get_accessible_organizations()
+        
+        return []
+    
+    def get(self, request):
+        form = PromoteStudentToOfficerForm()
+        # Filter form choices based on user's accessible organizations
+        accessible_students = self.get_accessible_students()
+        accessible_orgs = self.get_accessible_organizations()
+        
+        form.fields['student'].queryset = accessible_students
+        if isinstance(accessible_orgs, list):
+            org_ids = [org.id for org in accessible_orgs]
+            form.fields['organization'].queryset = Organization.objects.filter(id__in=org_ids)
+        else:
+            form.fields['organization'].queryset = accessible_orgs
+        
+        context = {
+            'form': form,
+            'is_admin': request.user.is_staff,
+            'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
+        }
+        return render(request, self.template_name, context)
+    
+    @transaction.atomic
+    def post(self, request):
+        form = PromoteStudentToOfficerForm(request.POST)
+        
+        # Filter form choices based on user's accessible organizations
+        accessible_students = self.get_accessible_students()
+        accessible_orgs = self.get_accessible_organizations()
+        
+        form.fields['student'].queryset = accessible_students
+        if isinstance(accessible_orgs, list):
+            org_ids = [org.id for org in accessible_orgs]
+            form.fields['organization'].queryset = Organization.objects.filter(id__in=org_ids)
+        else:
+            form.fields['organization'].queryset = accessible_orgs
+        
+        if form.is_valid():
+            student = form.cleaned_data['student']
+            organization = form.cleaned_data['organization']
+            role = form.cleaned_data['role']
+            can_process_payments = form.cleaned_data['can_process_payments']
+            can_void_payments = form.cleaned_data['can_void_payments']
+            can_promote_officers = form.cleaned_data.get('can_promote_officers', False)
+            
+            # Verify user can promote to this organization
+            if not request.user.is_staff:
+                if hasattr(request.user, 'officer_profile'):
+                    accessible_org_ids = request.user.officer_profile.organization.get_accessible_organization_ids()
+                    if organization.id not in accessible_org_ids:
+                        messages.error(request, "You don't have permission to add officers to that organization.")
+                        return render(request, self.template_name, {'form': form})
+                    
+                    # Non-admin officers can't grant promotion authority
+                    if can_promote_officers:
+                        messages.warning(request, "Only administrators can grant promotion authority.")
+                        can_promote_officers = False
+            
+            user = student.user
+            
+            # Create or update Officer profile
+            officer, created = Officer.objects.update_or_create(
+                user=user,
+                defaults={
+                    'employee_id': student.student_id_number,  # Use student ID as employee ID
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                    'phone_number': getattr(student, 'phone_number', ''),
+                    'organization': organization,
+                    'role': role,
+                    'can_process_payments': can_process_payments,
+                    'can_void_payments': can_void_payments,
+                    'can_promote_officers': can_promote_officers,
+                }
+            )
+            
+            # Update/create UserProfile with officer flag
+            UserProfile.objects.update_or_create(
+                user=user,
+                defaults={'is_officer': True}
+            )
+            
+            # Log the action
+            ActivityLog.objects.create(
+                user=request.user,
+                action='promote_student_to_officer',
+                description=f'Promoted {user.get_full_name()} ({student.student_id_number}) to officer with role: {role}',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            status_text = "created" if created else "updated"
+            messages.success(
+                request,
+                f'Officer profile {status_text} for {user.get_full_name()}! '
+                f'They can now access the officer dashboard while keeping their student account.'
+            )
+            return redirect('login')
+        else:
+            context = {
+                'form': form,
+                'is_admin': request.user.is_staff,
+                'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
+            }
+            return render(request, self.template_name, context)
+
+
+class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Admin/Officer view to demote officers back to student status"""
+    template_name = 'registration/demote_officer_to_student.html'
+    
+    def test_func(self):
+        user = self.request.user
+        # Allow staff/superusers
+        if user.is_staff:
+            return True
+        # Allow officers with promotion authority
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_promote_officers
+        return False
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Administrator or Officer with promotion authority required.")
+        return redirect('login')
+    
+    def get_accessible_officers(self):
+        """Get officers accessible to this user based on their organization"""
+        user = self.request.user
+        
+        if user.is_staff:
+            # Staff can see all officers
+            return Officer.objects.filter(is_active=True)
+        
+        if hasattr(user, 'officer_profile'):
+            # Officer can only see officers from their organization(s)
+            officer = user.officer_profile
+            org_ids = officer.organization.get_accessible_organization_ids()
+            return Officer.objects.filter(
+                is_active=True,
+                organization_id__in=org_ids
+            )
+        
+        return Officer.objects.none()
+    
+    def get(self, request):
+        form = DemoteOfficerToStudentForm()
+        # Filter form choices based on user's accessible organizations
+        accessible_officers = self.get_accessible_officers()
+        form.fields['officer'].queryset = accessible_officers
+        
+        context = {
+            'form': form,
+            'is_admin': request.user.is_staff,
+            'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
+        }
+        return render(request, self.template_name, context)
+    
+    @transaction.atomic
+    def post(self, request):
+        form = DemoteOfficerToStudentForm(request.POST)
+        
+        # Filter form choices based on user's accessible organizations
+        accessible_officers = self.get_accessible_officers()
+        form.fields['officer'].queryset = accessible_officers
+        
+        if form.is_valid():
+            officer = form.cleaned_data['officer']
+            reason = form.cleaned_data['reason']
+            
+            # Verify user can demote this officer
+            if not request.user.is_staff:
+                if hasattr(request.user, 'officer_profile'):
+                    accessible_org_ids = request.user.officer_profile.organization.get_accessible_organization_ids()
+                    if officer.organization.id not in accessible_org_ids:
+                        messages.error(request, "You don't have permission to demote officers in that organization.")
+                        return render(request, self.template_name, {'form': form})
+            
+            user = officer.user
+            
+            # Remove officer permissions
+            officer.can_promote_officers = False
+            officer.can_process_payments = False
+            officer.can_void_payments = False
+            officer.can_generate_reports = False
+            officer.is_super_officer = False
+            officer.save()
+            
+            # Update/create UserProfile to remove officer flag
+            UserProfile.objects.update_or_create(
+                user=user,
+                defaults={'is_officer': False}
+            )
+            
+            # Log the action
+            ActivityLog.objects.create(
+                user=request.user,
+                action='demote_officer_to_student',
+                description=f'Demoted {user.get_full_name()} from officer status. Reason: {reason}',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(
+                request,
+                f'Officer {user.get_full_name()} has been demoted to student-only status. '
+                f'They can still access the student portal with their student account.'
+            )
+            return redirect('officer_dashboard')
+        else:
+            context = {
+                'form': form,
+                'is_admin': request.user.is_staff,
+                'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
+            }
+            return render(request, self.template_name, context)
 class StudentRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     def test_func(self):
-        return hasattr(self.request.user, 'student_profile')
+        user = self.request.user
+        # Allow access if user has student profile OR is an officer (officers can view their student dashboard too)
+        has_student_profile = hasattr(user, 'student_profile')
+        is_officer = False
+        if hasattr(user, 'user_profile'):
+            is_officer = user.user_profile.is_officer
+        elif hasattr(user, 'officer_profile'):
+            is_officer = True
+        return has_student_profile or is_officer or user.is_superuser
     
     def handle_no_permission(self):
         messages.error(self.request, "Student access required.")
@@ -195,6 +488,91 @@ class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         messages.error(self.request, "Administrator access required.")
         return redirect('login')
 
+class SuperOfficerOrStaffMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """
+    Allows access to staff users OR super officers.
+    Super officers can only see data for their organization.
+    """
+    def test_func(self):
+        user = self.request.user
+        if user.is_staff:
+            return True
+        # Check if user is a super officer
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.is_super_officer
+        return False
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Administrator or Super Officer access required.")
+        return redirect('login')
+    
+    def get_user_organization(self):
+        """Get the organization of the super officer"""
+        if self.request.user.is_staff:
+            return None  # Staff can see all organizations
+        if hasattr(self.request.user, 'officer_profile'):
+            return self.request.user.officer_profile.organization
+        return None
+
+
+class OrganizationHierarchyMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """
+    Allows officers with can_promote_officers permission to access and manage
+    their organization and all child organizations.
+    Also allows staff/superusers to access all organizations.
+    """
+    def test_func(self):
+        user = self.request.user
+        # Allow staff/superusers
+        if user.is_staff:
+            return True
+        # Allow officers with promotion authority
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_promote_officers or user.officer_profile.is_super_officer
+        return False
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Officer with promotion authority required.")
+        return redirect('login')
+    
+    def get_user_organization(self):
+        """Get the organization of the officer"""
+        if self.request.user.is_staff:
+            return None  # Staff can see all organizations
+        if hasattr(self.request.user, 'officer_profile'):
+            return self.request.user.officer_profile.organization
+        return None
+    
+    def get_accessible_organizations(self):
+        """Get all organizations accessible to this user"""
+        if self.request.user.is_staff:
+            from paymentorg.models import Organization
+            return Organization.objects.all()
+        
+        if hasattr(self.request.user, 'officer_profile'):
+            org = self.request.user.officer_profile.organization
+            return org.get_accessible_organizations()
+        
+        return []
+    
+    def get_accessible_organization_ids(self):
+        """Get list of organization IDs accessible to this user"""
+        orgs = self.get_accessible_organizations()
+        if isinstance(orgs, list):
+            return [org.id for org in orgs]
+        return list(orgs.values_list('id', flat=True))
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user_organization'] = self.get_user_organization()
+        context['accessible_organizations'] = self.get_accessible_organizations()
+        context['can_promote_officers'] = (
+            self.request.user.is_staff or 
+            (hasattr(self.request.user, 'officer_profile') and 
+             self.request.user.officer_profile.can_promote_officers)
+        )
+        return context
+
 # base views
 class HomePageView(TemplateView):
     template_name = "home.html"
@@ -210,7 +588,15 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = self.request.user.student_profile
+        user = self.request.user
+        
+        # Get student profile - handle both regular students and officers who are students
+        if hasattr(user, 'student_profile'):
+            student = user.student_profile
+        else:
+            # If officer doesn't have student profile, redirect with error
+            messages.error(self.request, "You don't have a student profile.")
+            return redirect('officer_dashboard')
         
         expired_requests = student.payment_requests.filter(
             status='PENDING', 
@@ -1121,7 +1507,7 @@ class FeeTypeDeleteView(StaffRequiredMixin, DeleteView):
         return context
 
 # student crud
-class StudentListView(StaffRequiredMixin, ListView):
+class StudentListView(SuperOfficerOrStaffMixin, ListView):
     model = Student
     template_name = 'admin/student_list.html'
     context_object_name = 'students'
@@ -1129,6 +1515,13 @@ class StudentListView(StaffRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = Student.objects.select_related('user').all()
+        
+        # Filter by organization if super officer
+        org = self.get_user_organization()
+        if org:
+            # Get all students who have fees in this organization
+            queryset = queryset.filter(applicable_fees__organization=org).distinct()
+        
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
@@ -1142,36 +1535,70 @@ class StudentListView(StaffRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('search', '')
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class StudentDetailView(StaffRequiredMixin, DetailView):
+class StudentDetailView(SuperOfficerOrStaffMixin, DetailView):
     model = Student
     template_name = 'admin/student_detail.html'
     context_object_name = 'student'
+    
+    def get_object(self, queryset=None):
+        student = super().get_object(queryset)
+        # Check if super officer has access to this student
+        org = self.get_user_organization()
+        if org:
+            # Verify student has fees in this organization
+            if not student.applicable_fees.filter(organization=org).exists():
+                raise Http404("Student not found in your organization")
+        return student
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         student = self.object
         context['pending_payments'] = student.get_pending_payments()
         context['completed_payments'] = student.get_completed_payments()[:10]
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class StudentUpdateView(StaffRequiredMixin, UpdateView):
+class StudentUpdateView(SuperOfficerOrStaffMixin, UpdateView):
     model = Student
     form_class = StudentForm
     template_name = 'admin/update_form.html'
     success_url = reverse_lazy('student_list')
+    
+    def get_object(self, queryset=None):
+        student = super().get_object(queryset)
+        # Check if super officer has access to this student
+        org = self.get_user_organization()
+        if org:
+            if not student.applicable_fees.filter(organization=org).exists():
+                raise Http404("Student not found in your organization")
+        return student
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f"Update Student: {self.object.get_full_name()}"
         return context
 
-class StudentDeleteView(StaffRequiredMixin, DeleteView):
+class StudentDeleteView(SuperOfficerOrStaffMixin, DeleteView):
     model = Student
     template_name = 'admin/delete_confirm.html'
     success_url = reverse_lazy('student_list')
     context_object_name = 'student'
+    
+    def get_object(self, queryset=None):
+        student = super().get_object(queryset)
+        # Check if super officer has access to this student
+        org = self.get_user_organization()
+        if org:
+            if not student.applicable_fees.filter(organization=org).exists():
+                raise Http404("Student not found in your organization")
+        return student
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1180,7 +1607,7 @@ class StudentDeleteView(StaffRequiredMixin, DeleteView):
         return context
 
 # officer crud
-class OfficerListView(StaffRequiredMixin, ListView):
+class OfficerListView(SuperOfficerOrStaffMixin, ListView):
     model = Officer
     template_name = 'admin/officer_list.html'
     context_object_name = 'officers'
@@ -1188,9 +1615,16 @@ class OfficerListView(StaffRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = Officer.objects.select_related('user', 'organization').all()
+        
+        # Filter by organization if super officer
+        org = self.get_user_organization()
+        if org:
+            queryset = queryset.filter(organization=org)
+        
         org_filter = self.request.GET.get('organization')
-        if org_filter:
+        if org_filter and not org:  # Only allow filtering if staff (not super officer)
             queryset = queryset.filter(organization_id=org_filter)
+        
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
@@ -1206,36 +1640,66 @@ class OfficerListView(StaffRequiredMixin, ListView):
         context['organizations'] = Organization.objects.filter(is_active=True)
         context['search_query'] = self.request.GET.get('search', '')
         context['org_filter'] = self.request.GET.get('organization', '')
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class OfficerDetailView(StaffRequiredMixin, DetailView):
+class OfficerDetailView(SuperOfficerOrStaffMixin, DetailView):
     model = Officer
     template_name = 'admin/officer_detail.html'
     context_object_name = 'officer'
+    
+    def get_object(self, queryset=None):
+        officer = super().get_object(queryset)
+        # Check if super officer has access to this officer
+        org = self.get_user_organization()
+        if org and officer.organization != org:
+            raise Http404("Officer not found in your organization")
+        return officer
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         officer = self.object
         context['processed_payments'] = officer.processed_payments.filter(is_void=False).order_by('-created_at')[:10]
         context['voided_payments'] = officer.voided_payments.all().order_by('-voided_at')[:10]
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class OfficerUpdateView(StaffRequiredMixin, UpdateView):
+class OfficerUpdateView(SuperOfficerOrStaffMixin, UpdateView):
     model = Officer
     form_class = OfficerForm
     template_name = 'admin/update_form.html'
     success_url = reverse_lazy('officer_list')
+    
+    def get_object(self, queryset=None):
+        officer = super().get_object(queryset)
+        # Check if super officer has access to this officer
+        org = self.get_user_organization()
+        if org and officer.organization != org:
+            raise Http404("Officer not found in your organization")
+        return officer
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f"Update Officer: {self.object.get_full_name()}"
         return context
 
-class OfficerDeleteView(StaffRequiredMixin, DeleteView):
+class OfficerDeleteView(SuperOfficerOrStaffMixin, DeleteView):
     model = Officer
     template_name = 'admin/delete_confirm.html'
     success_url = reverse_lazy('officer_list')
     context_object_name = 'officer'
+    
+    def get_object(self, queryset=None):
+        officer = super().get_object(queryset)
+        # Check if super officer has access to this officer
+        org = self.get_user_organization()
+        if org and officer.organization != org:
+            raise Http404("Officer not found in your organization")
+        return officer
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1244,7 +1708,7 @@ class OfficerDeleteView(StaffRequiredMixin, DeleteView):
         return context
 
 # payment request management
-class PaymentRequestListView(StaffRequiredMixin, ListView):
+class PaymentRequestListView(SuperOfficerOrStaffMixin, ListView):
     model = PaymentRequest
     template_name = 'admin/paymentrequest_list.html'
     context_object_name = 'payment_requests'
@@ -1255,12 +1719,17 @@ class PaymentRequestListView(StaffRequiredMixin, ListView):
             'student', 'organization', 'fee_type'
         ).all()
         
+        # Filter by organization if super officer
+        org = self.get_user_organization()
+        if org:
+            queryset = queryset.filter(organization=org)
+        
         status_filter = self.request.GET.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
         org_filter = self.request.GET.get('organization')
-        if org_filter:
+        if org_filter and not org:  # Only allow filtering if staff
             queryset = queryset.filter(organization_id=org_filter)
         
         return queryset.order_by('-created_at')
@@ -1273,15 +1742,26 @@ class PaymentRequestListView(StaffRequiredMixin, ListView):
             'status': self.request.GET.get('status', ''),
             'organization': self.request.GET.get('organization', ''),
         }
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class PaymentRequestDetailView(StaffRequiredMixin, DetailView):
+class PaymentRequestDetailView(SuperOfficerOrStaffMixin, DetailView):
     model = PaymentRequest
     template_name = 'admin/paymentrequest_detail.html'
     context_object_name = 'request'
+    
+    def get_object(self, queryset=None):
+        payment_request = super().get_object(queryset)
+        # Check if super officer has access to this payment request
+        org = self.get_user_organization()
+        if org and payment_request.organization != org:
+            raise Http404("Payment request not found in your organization")
+        return payment_request
 
 # payment management
-class PaymentListView(StaffRequiredMixin, ListView):
+class PaymentListView(SuperOfficerOrStaffMixin, ListView):
     model = Payment
     template_name = 'admin/payment_list.html'
     context_object_name = 'payments'
@@ -1291,6 +1771,11 @@ class PaymentListView(StaffRequiredMixin, ListView):
         queryset = Payment.objects.select_related(
             'student', 'organization', 'fee_type', 'processed_by'
         ).all()
+        
+        # Filter by organization if super officer
+        org = self.get_user_organization()
+        if org:
+            queryset = queryset.filter(organization=org)
         
         status_filter = self.request.GET.get('status')
         if status_filter:
@@ -1303,7 +1788,7 @@ class PaymentListView(StaffRequiredMixin, ListView):
             queryset = queryset.filter(is_void=False)
         
         org_filter = self.request.GET.get('organization')
-        if org_filter:
+        if org_filter and not org:  # Only allow filtering if staff
             queryset = queryset.filter(organization_id=org_filter)
         
         date_from = self.request.GET.get('date_from')
@@ -1326,12 +1811,23 @@ class PaymentListView(StaffRequiredMixin, ListView):
             'date_from': self.request.GET.get('date_from', ''),
             'date_to': self.request.GET.get('date_to', ''),
         }
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class PaymentDetailView(StaffRequiredMixin, DetailView):
+class PaymentDetailView(SuperOfficerOrStaffMixin, DetailView):
     model = Payment
     template_name = 'admin/payment_detail.html'
     context_object_name = 'payment'
+    
+    def get_object(self, queryset=None):
+        payment = super().get_object(queryset)
+        # Check if super officer has access to this payment
+        org = self.get_user_organization()
+        if org and payment.organization != org:
+            raise Http404("Payment not found in your organization")
+        return payment
 
 # academic year config crud
 class AcademicYearConfigListView(StaffRequiredMixin, ListView):
@@ -1375,7 +1871,7 @@ class AcademicYearConfigDeleteView(StaffRequiredMixin, DeleteView):
         return context
 
 # receipt views
-class ReceiptListView(StaffRequiredMixin, ListView):
+class ReceiptListView(SuperOfficerOrStaffMixin, ListView):
     model = Receipt
     template_name = 'admin/receipt_list.html'
     context_object_name = 'receipts'
@@ -1383,6 +1879,12 @@ class ReceiptListView(StaffRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = Receipt.objects.select_related('payment', 'payment__student', 'payment__organization').all()
+        
+        # Filter by organization if super officer
+        org = self.get_user_organization()
+        if org:
+            queryset = queryset.filter(payment__organization=org)
+        
         or_search = self.request.GET.get('or_number')
         if or_search:
             queryset = queryset.filter(or_number__icontains=or_search)
