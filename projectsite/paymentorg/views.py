@@ -213,36 +213,25 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
             return Student.objects.filter(is_active=True).exclude(user__officer_profile__isnull=False)
         
         if hasattr(user, 'officer_profile'):
-            # Officer can only see students from their organization(s)
             officer = user.officer_profile
-            accessible_orgs = officer.organization.get_accessible_organizations()
+            org = officer.organization
             
-            # Build a query for students based on accessible organizations
-            # EXCLUDING students who are already officers
-            students_query = Student.objects.filter(is_active=True).exclude(user__officer_profile__isnull=False)
+            # Base queryset: all active, non-promoted students
+            students_qs = Student.objects.filter(is_active=True).exclude(user__officer_profile__isnull=False)
             
-            # Filter by program affiliation matching organization's affiliation
-            q_filter = Q()
-            for org in accessible_orgs:
-                if org.program_affiliation == 'ALL':
-                    # Organization serves all programs
-                    # Check if it's a college-level org or program under a college
-                    if org.hierarchy_level == 'COLLEGE':
-                        # Top-level college org - can access all non-promoted students
-                        return students_query
-                    else:
-                        # Program-level org under college with 'ALL' affiliation - shouldn't happen
-                        # but include all just in case
-                        q_filter |= Q(is_active=True)
+            # Filter based on org hierarchy
+            if org.hierarchy_level == 'COLLEGE':
+                # College-level org: see all students
+                return students_qs
+            elif org.hierarchy_level == 'PROGRAM':
+                # Program-level org: see only students in that program
+                if org.program_affiliation and org.program_affiliation != 'ALL':
+                    return students_qs.filter(course__program_type=org.program_affiliation)
                 else:
-                    # Program-specific org - match course.program_type
-                    program_type = org.program_affiliation
-                    q_filter |= Q(course__program_type=program_type)
+                    # Program org with ALL affiliation - see all students (edge case)
+                    return students_qs
             
-            if q_filter:
-                students_query = students_query.filter(q_filter)
-            
-            return students_query.distinct()
+            return students_qs
         
         return Student.objects.none()
     
@@ -418,7 +407,7 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
         return redirect('login')
     
     def get_accessible_officers(self):
-        """Get officers accessible to this user - ONLY from immediate organization"""
+        """Get officers accessible to this user based on org hierarchy"""
         user = self.request.user
         
         if user.is_staff:
@@ -426,11 +415,19 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
             return Officer.objects.filter(is_active=True)
         
         if hasattr(user, 'officer_profile'):
-            # Officer can ONLY see officers from their immediate organization (not child orgs)
             officer = user.officer_profile
+            org = officer.organization
+            
+            # Program-level officers see only their org
+            # College/ALLORG officers see their org and all children
+            if org.hierarchy_level == 'PROGRAM':
+                org_ids = [org.id]
+            else:
+                org_ids = org.get_accessible_organization_ids()
+            
             return Officer.objects.filter(
                 is_active=True,
-                organization_id=officer.organization.id
+                organization_id__in=org_ids
             )
         
         return Officer.objects.none()
@@ -582,13 +579,22 @@ class ListOfficersInOrgView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     
     def get_queryset(self):
         user = self.request.user
-        # Show only officers from the user's immediate organization
-        if hasattr(user, 'officer_profile'):
-            return Officer.objects.filter(
-                is_active=True,
-                organization_id=user.officer_profile.organization.id
-            ).select_related('user', 'organization')
-        return Officer.objects.none()
+        if not hasattr(user, 'officer_profile'):
+            return Officer.objects.none()
+        
+        officer = user.officer_profile
+        # Program-level officers see only their org; College-level/ALLORG see accessible orgs (self + children)
+        if officer.organization.hierarchy_level == 'PROGRAM':
+            # Program officer sees only their org
+            org_ids = [officer.organization.id]
+        else:
+            # College/ALLORG officer sees their org and children
+            org_ids = officer.organization.get_accessible_organization_ids()
+        
+        return Officer.objects.filter(
+            is_active=True,
+            organization_id__in=org_ids
+        ).select_related('user', 'organization').order_by('organization', 'last_name', 'first_name')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -616,18 +622,35 @@ class ListStudentsInOrgView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     
     def get_queryset(self):
         user = self.request.user
-        # Show all active students, excluding those already promoted
-        if hasattr(user, 'officer_profile'):
-            return Student.objects.filter(
-                is_active=True
-            ).exclude(
-                user__officer_profile__isnull=False
-            ).select_related('user', 'course', 'course__college').order_by('last_name', 'first_name')
-        return Student.objects.none()
+        if not hasattr(user, 'officer_profile'):
+            return Student.objects.none()
+        
+        officer = user.officer_profile
+        org = officer.organization
+        
+        # Base queryset: all active students
+        qs = Student.objects.filter(is_active=True).select_related('user', 'course', 'course__college')
+        
+        # Filter by org scope: students whose program matches org's affiliation
+        if org.hierarchy_level == 'COLLEGE':
+            # College-level org: show all students
+            pass
+        elif org.hierarchy_level == 'PROGRAM':
+            # Program-level org: show only students in that program
+            if org.program_affiliation and org.program_affiliation != 'ALL':
+                qs = qs.filter(course__program_type=org.program_affiliation)
+        
+        return qs.order_by('last_name', 'first_name')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['user_organization'] = self.request.user.officer_profile.organization if hasattr(self.request.user, 'officer_profile') else None
+        user = self.request.user
+        if hasattr(user, 'officer_profile'):
+            officer = user.officer_profile
+            context['user_organization'] = officer.organization
+            # Mark students who are already promoted
+            for student in context['students']:
+                student.is_promoted = hasattr(student.user, 'officer_profile') and student.user.officer_profile is not None
         return context
 
 
