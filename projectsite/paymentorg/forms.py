@@ -804,3 +804,91 @@ class CreateOfficerForm(UserCreationForm):
             )
         return user
 
+class CompleteProfileForm(forms.ModelForm):
+    student_id_number = forms.CharField(
+        max_length=20,
+        label="Student ID Number",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '2021-12345'})
+    )
+    phone_number = forms.CharField(
+        max_length=15,
+        label="Phone Number",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XX-XXX-XXXX'}),
+        required=False
+    )
+    college = forms.ModelChoiceField(
+        queryset=College.objects.none(),
+        label="College/Department",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Select College/Department",
+        help_text="College of Sciences (COS) - This system is designed for College of Sciences only"
+    )
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.none(),
+        label="Course/Program",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Select Course/Program",
+        help_text="Select one of the 5 supported programs: Medical Biology, Marine Biology, Computer Science, Environmental Science, or Information Technology"
+    )
+    year_level = forms.IntegerField(
+        min_value=1, max_value=5,
+        label="Year Level",
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+
+    class Meta:
+        model = Student
+        fields = ['student_id_number', 'phone_number', 'college', 'course', 'year_level']
+
+    def clean_student_id_number(self):
+        student_id = self.cleaned_data['student_id_number']
+        if Student.objects.filter(student_id_number=student_id).exists():
+            raise ValidationError("This student ID is already registered.")
+        return student_id
+
+    def clean(self):
+        cleaned_data = super().clean()
+        course = cleaned_data.get('course')
+        college = cleaned_data.get('college')
+        
+        if course and college and course.college != college:
+            raise ValidationError("The selected course does not belong to the selected college.")
+        
+        return cleaned_data
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # System is focused on College of Sciences only
+        colleges_qs = College.objects.filter(code="COS", is_active=True).order_by('name')
+        # Only show the 5 supported programs (filter by program_type to exclude 'OTHER')
+        courses_qs = Course.objects.filter(
+            college__code="COS", 
+            is_active=True,
+            program_type__in=['MEDICAL_BIOLOGY', 'MARINE_BIOLOGY', 'COMPUTER_SCIENCE', 'ENVIRONMENTAL_SCIENCE', 'INFORMATION_TECHNOLOGY']
+        ).select_related('college').order_by('name')
+
+        self.fields['college'].queryset = colleges_qs
+        self.fields['course'].queryset = courses_qs
+        self.fields['course'].label_from_instance = lambda obj: f"{obj.name}"
+
+        selected_college = None
+        if 'college' in self.data and self.data.get('college'):
+            selected_college = self.data.get('college')
+        elif self.initial.get('college'):
+            initial_college = self.initial.get('college')
+            if hasattr(initial_college, 'pk'):
+                selected_college = initial_college.pk
+            else:
+                selected_college = initial_college
+
+        if selected_college:
+            try:
+                selected_college_id = int(selected_college)
+                self.fields['course'].queryset = courses_qs.filter(college_id=selected_college_id)
+            except (ValueError, TypeError):
+                self.fields['course'].queryset = courses_qs
+
+        self.fields['college'].widget.attrs.setdefault('class', 'form-select')
+        self.fields['course'].widget.attrs.setdefault('class', 'form-select')
+

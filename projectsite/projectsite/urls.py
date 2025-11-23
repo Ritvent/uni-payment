@@ -22,19 +22,24 @@ from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
 
+
 # initial urlpatterns list
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+      path('accounts/', include('allauth.urls')),
+        
 
     path('', views.HomePageView.as_view(), name='home'),
     path('login/', views.CustomLoginView.as_view(), name='login'),
+    path('complete-profile/', views.CompleteProfileView.as_view(), name='complete_profile'),
     
-    path(
+    path(   
         'logout/', 
         auth_views.LogoutView.as_view(template_name='registration/logged_out.html'), 
         name='logout'
     ),
+   # allauth routes
     
     path('register/', views.SelectProfileView.as_view(), name='select_profile'),
     path('register/student/', views.StudentRegistrationView.as_view(), name='student_register'),

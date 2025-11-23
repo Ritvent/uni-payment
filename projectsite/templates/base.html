@@ -184,13 +184,9 @@
                             </form>
                         </div>
                     {% else %}
-                        <a href="{% url 'login' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
+                        <a href="{% url 'login' %}" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
                             <i data-lucide="log-in" class="w-4 h-4"></i>
-                            Login
-                        </a>
-                        <a href="{% url 'select_profile' %}" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-                            <i data-lucide="user-plus" class="w-4 h-4"></i>
-                            Register
+                            Sign In
                         </a>
                     {% endif %}
                 </div>
@@ -286,13 +282,9 @@
                         </form>
                     </div>
                 {% else %}
-                    <a href="{% url 'login' %}" class="block px-4 py-2 text-gray-700 hover:bg-green-100 rounded-lg font-medium transition-colors flex items-center gap-2">
+                    <a href="{% url 'login' %}" class="block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
                         <i data-lucide="log-in" class="w-4 h-4"></i>
-                        Login
-                    </a>
-                    <a href="{% url 'select_profile' %}" class="block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-                        <i data-lucide="user-plus" class="w-4 h-4"></i>
-                        Register
+                        Sign In
                     </a>
                 {% endif %}
             </div>

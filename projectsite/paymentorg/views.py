@@ -31,7 +31,7 @@ from .forms import (
     FeeTypeForm, StudentForm, OfficerForm, VoidPaymentForm,
     StudentRegistrationForm, OfficerRegistrationForm, AcademicYearConfigForm,
     BulkPaymentPostForm, PromoteStudentToOfficerForm, DemoteOfficerToStudentForm,
-    CreateOfficerForm
+    CreateOfficerForm, CompleteProfileForm
 )
 from .utils import send_receipt_email
 
@@ -108,7 +108,7 @@ class CustomLoginView(LoginView):
         elif user.is_staff:
             return '/admin/'
         else:
-            return reverse_lazy('home')
+            return reverse_lazy('complete_profile')
     
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -818,6 +818,21 @@ class AllOrgAdminMixin(LoginRequiredMixin, UserPassesTestMixin):
 # base views
 class HomePageView(TemplateView):
     template_name = "home.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            # Check for officer
+            if hasattr(request.user, 'officer_profile') or request.user.is_superuser:
+                return redirect('officer_dashboard')
+            
+            # Check for student
+            if hasattr(request.user, 'student_profile'):
+                return redirect('student_dashboard')
+            
+            # If neither, redirect to complete profile
+            return redirect('complete_profile')
+            
+        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2231,3 +2246,91 @@ class ActivityLogListView(StaffRequiredMixin, ListView):
             'user': self.request.GET.get('user', ''),
         }
         return context
+
+class CompleteProfileView(LoginRequiredMixin, View):
+    template_name = 'registration/complete_profile.html'
+    
+    def get(self, request):
+        # If student profile already exists, redirect to dashboard
+        if hasattr(request.user, 'student_profile'):
+            return redirect('student_dashboard')
+        
+        # If officer profile exists, redirect to officer dashboard
+        if hasattr(request.user, 'officer_profile'):
+            return redirect('officer_dashboard')
+            
+        form = CompleteProfileForm()
+        
+        # Context for dynamic dropdowns (same as StudentRegistrationView)
+        courses = Course.objects.filter(
+            college__code="COS", 
+            is_active=True,
+            program_type__in=['MEDICAL_BIOLOGY', 'MARINE_BIOLOGY', 'COMPUTER_SCIENCE', 'ENVIRONMENTAL_SCIENCE', 'INFORMATION_TECHNOLOGY']
+        ).select_related('college').order_by('name')
+        course_payload = [
+            {
+                'id': course.id,
+                'label': course.name,
+                'college_id': course.college_id,
+                'program_type': course.program_type,
+            }
+            for course in courses
+        ]
+        
+        context = {
+            'form': form,
+            'course_options_json': json.dumps(course_payload),
+        }
+        return render(request, self.template_name, context)
+
+    @transaction.atomic
+    def post(self, request):
+        form = CompleteProfileForm(request.POST)
+        if form.is_valid():
+            student = form.save(commit=False)
+            student.user = request.user
+            student.first_name = request.user.first_name
+            student.last_name = request.user.last_name
+            student.email = request.user.email
+            
+            # Set academic year
+            try:
+                current_period = AcademicYearConfig.objects.get(is_current=True)
+                student.academic_year = current_period.academic_year
+                student.semester = current_period.semester
+            except Exception:
+                student.academic_year = "2024-2025"
+                student.semester = "1st Semester"
+                
+            student.save()
+            
+            # Create UserProfile
+            UserProfile.objects.get_or_create(
+                user=request.user,
+                defaults={'is_officer': False}
+            )
+            
+            messages.success(request, "Profile completed successfully!")
+            return redirect('student_dashboard')
+        
+        # Re-render with errors
+        courses = Course.objects.filter(
+            college__code="COS", 
+            is_active=True,
+            program_type__in=['MEDICAL_BIOLOGY', 'MARINE_BIOLOGY', 'COMPUTER_SCIENCE', 'ENVIRONMENTAL_SCIENCE', 'INFORMATION_TECHNOLOGY']
+        ).select_related('college').order_by('name')
+        course_payload = [
+            {
+                'id': course.id,
+                'label': course.name,
+                'college_id': course.college_id,
+                'program_type': course.program_type,
+            }
+            for course in courses
+        ]
+        
+        context = {
+            'form': form,
+            'course_options_json': json.dumps(course_payload),
+        }
+        return render(request, self.template_name, context)
