@@ -296,21 +296,9 @@ class PromoteStudentToOfficerForm(forms.Form):
     def __init__(self, *args, student_queryset=None, organization_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
         
-        import sys
-        
-        # Build student field with filtered queryset
-        if student_queryset is not None:
-            student_qs = student_queryset
-            try:
-                student_count = student_qs.count()
-                print(f"DEBUG: PromoteForm received student_queryset with count = {student_count}", file=sys.stderr)
-            except Exception as e:
-                print(f"DEBUG: PromoteForm error counting student_queryset: {e}", file=sys.stderr)
-                student_count = "error"
-        else:
-            student_qs = Student.objects.filter(is_active=True)
-            student_count = "default (all active)"
-            print(f"DEBUG: PromoteForm using default student_queryset = {student_count}", file=sys.stderr)
+        # Use provided querysets or default to all active
+        student_qs = student_queryset if student_queryset is not None else Student.objects.filter(is_active=True)
+        org_qs = organization_queryset if organization_queryset is not None else Organization.objects.filter(is_active=True)
         
         self.fields['student'] = forms.ModelChoiceField(
             queryset=student_qs,
@@ -318,20 +306,6 @@ class PromoteStudentToOfficerForm(forms.Form):
             widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
             help_text="Choose an active student to promote to officer"
         )
-        
-        # Build organization field
-        if organization_queryset is not None:
-            org_qs = organization_queryset
-            try:
-                org_count = org_qs.count()
-                print(f"DEBUG: PromoteForm received organization_queryset with count = {org_count}", file=sys.stderr)
-            except Exception as e:
-                print(f"DEBUG: PromoteForm error counting organization_queryset: {e}", file=sys.stderr)
-                org_count = "error"
-        else:
-            org_qs = Organization.objects.filter(is_active=True)
-            org_count = "default (all active)"
-            print(f"DEBUG: PromoteForm using default organization_queryset = {org_count}", file=sys.stderr)
         
         self.fields['organization'] = forms.ModelChoiceField(
             queryset=org_qs,
@@ -368,21 +342,8 @@ class DemoteOfficerToStudentForm(forms.Form):
     def __init__(self, *args, officer_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
         
-        import sys
-        
-        # Build officer field with filtered queryset
-        if officer_queryset is not None:
-            officer_qs = officer_queryset
-            try:
-                officer_count = officer_qs.count()
-                print(f"DEBUG: DemoteForm received officer_queryset with count = {officer_count}", file=sys.stderr)
-            except Exception as e:
-                print(f"DEBUG: DemoteForm error counting officer_queryset: {e}", file=sys.stderr)
-                officer_count = "error"
-        else:
-            officer_qs = Officer.objects.filter(is_active=True)
-            officer_count = "default (all active)"
-            print(f"DEBUG: DemoteForm using default officer_queryset = {officer_count}", file=sys.stderr)
+        # Use provided queryset or default to all active
+        officer_qs = officer_queryset if officer_queryset is not None else Officer.objects.filter(is_active=True)
         
         self.fields['officer'] = forms.ModelChoiceField(
             queryset=officer_qs,

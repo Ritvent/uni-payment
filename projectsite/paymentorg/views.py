@@ -205,36 +205,33 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
         return redirect('login')
     
     def get_accessible_students(self):
-        """Get students accessible to this user based on their organization - EXCLUDING already promoted students"""
+        """Get students accessible based on org scope - excluding already promoted students"""
         user = self.request.user
         
+        # Base: all active, non-promoted students
+        base_qs = Student.objects.filter(
+            is_active=True
+        ).exclude(
+            user__officer_profile__isnull=False
+        ).select_related('course', 'college').order_by('last_name', 'first_name').distinct()
+        
         if user.is_staff:
-            # Staff can see all non-promoted students
-            return Student.objects.filter(is_active=True).exclude(user__officer_profile__isnull=False)
+            return base_qs
         
         if hasattr(user, 'officer_profile'):
             officer = user.officer_profile
             org = officer.organization
             
-            # Base queryset: all active, non-promoted students
-            students_qs = Student.objects.filter(is_active=True).exclude(user__officer_profile__isnull=False).select_related('course')
+            # PROGRAM-level: only students in this program
+            if org.hierarchy_level == 'PROGRAM':
+                return base_qs.filter(course__program_type=org.program_affiliation)
             
-            # Filter based on org hierarchy - ONLY immediate org, no children
-            if org.hierarchy_level == 'COLLEGE':
-                # College-level org: see all students (they represent the whole college)
-                return students_qs.order_by('last_name', 'first_name').distinct()
-            elif org.hierarchy_level == 'PROGRAM':
-                # Program-level org: see ONLY students in that program
-                # Must filter by the program affiliation this org serves
-                if org.program_affiliation and org.program_affiliation != 'ALL':
-                    filtered = students_qs.filter(course__program_type=org.program_affiliation)
-                    return filtered.order_by('last_name', 'first_name').distinct()
-                else:
-                    # Program org with ALL affiliation - shouldn't happen, but allow all
-                    return students_qs.order_by('last_name', 'first_name').distinct()
-            else:
-                # CLUB or other level - see all students (fallback)
-                return students_qs.order_by('last_name', 'first_name').distinct()
+            # COLLEGE-level: all students (college represents whole college)
+            elif org.hierarchy_level == 'COLLEGE':
+                return base_qs
+            
+            # Default fallback
+            return base_qs
         
         return Student.objects.none()
     
@@ -253,54 +250,22 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
         return []
     
     def get(self, request):
-        import sys
-        print(f"\n=== PromoteStudentToOfficerView.get() START ===", file=sys.stderr)
-        
-        # Get accessible students and organizations
+        # Get accessible students
         accessible_students = self.get_accessible_students()
         
-        # Debug: ensure we have a queryset
-        if accessible_students is None:
-            accessible_students = Student.objects.none()
-        
-        # Debug logging
-        student_count = accessible_students.count() if accessible_students else 0
-        print(f"DEBUG: get_accessible_students() returned queryset with count = {student_count}", file=sys.stderr)
-        
-        # Check user info
+        # Restrict organizations based on user type
         if hasattr(request.user, 'officer_profile'):
             officer = request.user.officer_profile
-            print(f"DEBUG: Officer {officer.user.username} in org {officer.organization.name} ({officer.organization.hierarchy_level})", file=sys.stderr)
-            if hasattr(officer.organization, 'program_affiliation'):
-                print(f"DEBUG: Organization program_affiliation = {officer.organization.program_affiliation}", file=sys.stderr)
-        else:
-            print(f"DEBUG: Staff/Superuser accessing form", file=sys.stderr)
-        
-        # For program-level officers, restrict organization to only their own
-        if hasattr(request.user, 'officer_profile'):
-            officer = request.user.officer_profile
-            # Only allow assigning to their own organization
+            # Officers can only assign to their own organization
             accessible_orgs = Organization.objects.filter(id=officer.organization.id)
         else:
-            # For superusers/staff, allow all organizations
-            accessible_orgs_list = self.get_accessible_organizations()
-            if isinstance(accessible_orgs_list, list):
-                org_ids = [org.id for org in accessible_orgs_list]
-                accessible_orgs = Organization.objects.filter(id__in=org_ids)
-            else:
-                accessible_orgs = accessible_orgs_list
+            # Staff can access all organizations
+            accessible_orgs = Organization.objects.filter(is_active=True)
         
-        org_count = accessible_orgs.count() if accessible_orgs else 0
-        print(f"DEBUG: accessible_orgs count = {org_count}", file=sys.stderr)
-        
-        # Create form with filtered querysets
-        print(f"DEBUG: Creating form with student_queryset={accessible_students} and organization_queryset={accessible_orgs}", file=sys.stderr)
         form = PromoteStudentToOfficerForm(
             student_queryset=accessible_students,
             organization_queryset=accessible_orgs
         )
-        print(f"DEBUG: Form created successfully", file=sys.stderr)
-        print(f"=== PromoteStudentToOfficerView.get() END ===\n", file=sys.stderr)
         
         context = {
             'form': form,
@@ -468,27 +433,10 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
         return Officer.objects.none()
     
     def get(self, request):
-        import sys
-        print(f"\n=== DemoteOfficerToStudentView.get() START ===", file=sys.stderr)
-        
         # Get accessible officers
         accessible_officers = self.get_accessible_officers()
         
-        # Debug logging
-        officer_count = accessible_officers.count() if accessible_officers else 0
-        print(f"DEBUG: get_accessible_officers() returned queryset with count = {officer_count}", file=sys.stderr)
-        
-        if hasattr(request.user, 'officer_profile'):
-            officer = request.user.officer_profile
-            print(f"DEBUG: Officer {officer.user.username} in org {officer.organization.name} ({officer.organization.hierarchy_level})", file=sys.stderr)
-        else:
-            print(f"DEBUG: Staff/Superuser accessing demote form", file=sys.stderr)
-        
-        # Create form with filtered queryset
-        print(f"DEBUG: Creating form with officer_queryset={accessible_officers}", file=sys.stderr)
         form = DemoteOfficerToStudentForm(officer_queryset=accessible_officers)
-        print(f"DEBUG: Form created successfully", file=sys.stderr)
-        print(f"=== DemoteOfficerToStudentView.get() END ===\n", file=sys.stderr)
         
         context = {
             'form': form,
