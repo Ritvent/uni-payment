@@ -215,9 +215,11 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
             user__officer_profile__isnull=False
         ).select_related('course', 'college').order_by('last_name', 'first_name').distinct()
         
-        if user.is_staff:
+        # Superusers see everything
+        if user.is_superuser:
             return base_qs
         
+        # Officers (even if they are staff) are restricted by their organization
         if hasattr(user, 'officer_profile'):
             officer = user.officer_profile
             org = officer.organization
@@ -232,6 +234,10 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
             
             # Default fallback
             return base_qs
+            
+        # Non-officer staff see everything
+        if user.is_staff:
+            return base_qs
         
         return Student.objects.none()
     
@@ -239,13 +245,20 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
         """Get organizations accessible to this user"""
         user = self.request.user
         
-        if user.is_staff:
+        # Superusers see everything
+        if user.is_superuser:
             from paymentorg.models import Organization
             return Organization.objects.filter(is_active=True)
         
+        # Officers (even if they are staff) are restricted by their organization
         if hasattr(user, 'officer_profile'):
             officer = user.officer_profile
             return officer.organization.get_accessible_organizations()
+            
+        # Non-officer staff see everything
+        if user.is_staff:
+            from paymentorg.models import Organization
+            return Organization.objects.filter(is_active=True)
         
         return []
     
@@ -311,7 +324,7 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
             
             # Verify user can promote to this organization
             # For program-level officers, ensure they're only assigning to their own org
-            if not request.user.is_staff:
+            if not request.user.is_superuser:
                 if hasattr(request.user, 'officer_profile'):
                     officer = request.user.officer_profile
                     # Program-level officers can ONLY assign to their own organization
@@ -410,10 +423,11 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
         """Get officers accessible to this user based on org hierarchy"""
         user = self.request.user
         
-        if user.is_staff:
-            # Staff can see all officers
+        # Superusers see everything
+        if user.is_superuser:
             return Officer.objects.filter(is_active=True)
         
+        # Officers (even if they are staff) are restricted by their organization
         if hasattr(user, 'officer_profile'):
             officer = user.officer_profile
             org = officer.organization
@@ -429,6 +443,10 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
                 is_active=True,
                 organization_id__in=org_ids
             )
+            
+        # Non-officer staff see everything
+        if user.is_staff:
+            return Officer.objects.filter(is_active=True)
         
         return Officer.objects.none()
     
@@ -458,7 +476,7 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
             reason = form.cleaned_data['reason']
             
             # Verify user can demote this officer
-            if not request.user.is_staff:
+            if not request.user.is_superuser:
                 if hasattr(request.user, 'officer_profile'):
                     accessible_org_ids = request.user.officer_profile.organization.get_accessible_organization_ids()
                     if officer.organization.id not in accessible_org_ids:
