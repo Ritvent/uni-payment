@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Officer Account - UniPay{% endblock %}
+
+{% block content %}
+<div class="container mx-auto max-w-2xl">
+    <div class="bg-white rounded-lg shadow-lg p-8 mt-8">
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-2">
+                <i data-lucide="user-plus" class="w-8 h-8 text-blue-600"></i>
+                <h1 class="text-3xl font-bold text-gray-900">Create Officer Account</h1>
+            </div>
+            <p class="text-gray-600">Create a brand new officer account from scratch</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-6 p-4 rounded-lg bg-{{ message.tags }}-50 border border-{{ message.tags }}-200 text-{{ message.tags }}-800">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Account Information -->
+            <div class="border-b pb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Account Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Username -->
+                    <div>
+                        <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Username <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Password -->
+                    <div>
+                        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Password <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.password1 }}
+                        {% if form.password1.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.password1.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div>
+                        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Confirm Password <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.password2 }}
+                        {% if form.password2.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.password2.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Email Address <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personal Information -->
+            <div class="border-b pb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- First Name -->
+                    <div>
+                        <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            First Name <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Last Name -->
+                    <div>
+                        <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Last Name <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Employee ID -->
+                    <div>
+                        <label for="{{ form.employee_id.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Employee/Officer ID <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.employee_id }}
+                        {% if form.employee_id.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.employee_id.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Phone Number -->
+                    <div>
+                        <label for="{{ form.phone_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Phone Number
+                        </label>
+                        {{ form.phone_number }}
+                        {% if form.phone_number.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.phone_number.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organization & Role -->
+            <div class="border-b pb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Organization & Role</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Organization -->
+                    <div>
+                        <label for="{{ form.organization.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Organization <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.organization }}
+                        {% if form.organization.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.organization.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-2 text-sm text-gray-600">Which organization will this officer work for?</p>
+                    </div>
+
+                    <!-- Role -->
+                    <div>
+                        <label for="{{ form.role.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Role/Position <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.role }}
+                        {% if form.role.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.role.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-2 text-sm text-gray-600">e.g., Treasurer, Finance Officer, President</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions -->
+            <div class="border-b pb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Permissions</h2>
+                <p class="text-gray-600 mb-4">Select which permissions this officer should have</p>
+                
+                <div class="space-y-3">
+                    <!-- Can Process Payments -->
+                    <div class="flex items-start gap-3">
+                        <div class="flex items-center h-6">
+                            {{ form.can_process_payments }}
+                        </div>
+                        <div>
+                            <label for="{{ form.can_process_payments.id_for_label }}" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                Can Process Payments
+                            </label>
+                            <p class="text-xs text-gray-600 mt-1">Allow this officer to receive and process student payments</p>
+                        </div>
+                    </div>
+
+                    <!-- Can Void Payments -->
+                    <div class="flex items-start gap-3">
+                        <div class="flex items-center h-6">
+                            {{ form.can_void_payments }}
+                        </div>
+                        <div>
+                            <label for="{{ form.can_void_payments.id_for_label }}" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                Can Void Payments
+                            </label>
+                            <p class="text-xs text-gray-600 mt-1">Allow this officer to void or cancel recorded payments</p>
+                        </div>
+                    </div>
+
+                    <!-- Can Generate Reports -->
+                    <div class="flex items-start gap-3">
+                        <div class="flex items-center h-6">
+                            {{ form.can_generate_reports }}
+                        </div>
+                        <div>
+                            <label for="{{ form.can_generate_reports.id_for_label }}" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                Can Generate Reports
+                            </label>
+                            <p class="text-xs text-gray-600 mt-1">Allow this officer to view and generate financial reports</p>
+                        </div>
+                    </div>
+
+                    <!-- Can Promote Officers -->
+                    <div class="flex items-start gap-3">
+                        <div class="flex items-center h-6">
+                            {{ form.can_promote_officers }}
+                        </div>
+                        <div>
+                            <label for="{{ form.can_promote_officers.id_for_label }}" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                Can Promote Officers
+                            </label>
+                            <p class="text-xs text-gray-600 mt-1">Allow this officer to promote students to officers and manage officer permissions in their organization</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex gap-4 justify-end pt-6">
+                <a href="{% url 'officer_dashboard' %}" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Create Officer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    select,
+    textarea {
+        @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    }
+
+    input[type="checkbox"] {
+        @apply w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500;
+    }
+</style>
+{% endblock %}

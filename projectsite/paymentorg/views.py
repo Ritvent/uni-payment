@@ -30,7 +30,8 @@ from .forms import (
     StudentPaymentRequestForm, OfficerPaymentProcessForm, OrganizationForm, 
     FeeTypeForm, StudentForm, OfficerForm, VoidPaymentForm,
     StudentRegistrationForm, OfficerRegistrationForm, AcademicYearConfigForm,
-    BulkPaymentPostForm, PromoteStudentToOfficerForm, DemoteOfficerToStudentForm
+    BulkPaymentPostForm, PromoteStudentToOfficerForm, DemoteOfficerToStudentForm,
+    CreateOfficerForm
 )
 from .utils import send_receipt_email
 
@@ -485,6 +486,61 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
             }
             return render(request, self.template_name, context)
+
+
+class CreateOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """ALLORG-only view to create brand new officer accounts from scratch"""
+    template_name = 'registration/create_officer.html'
+    
+    def test_func(self):
+        user = self.request.user
+        # Only ALLORG officer can create officers
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_create_officers
+        return False
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Only administrators with officer creation privileges can access this page.")
+        return redirect('officer_dashboard')
+    
+    def get(self, request):
+        form = CreateOfficerForm()
+        context = {
+            'form': form,
+            'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
+        }
+        return render(request, self.template_name, context)
+    
+    @transaction.atomic
+    def post(self, request):
+        form = CreateOfficerForm(request.POST)
+        
+        if form.is_valid():
+            user = form.save()
+            officer = user.officer_profile
+            
+            # Log the action
+            ActivityLog.objects.create(
+                user=request.user,
+                action='create_officer',
+                description=f'Created new officer account: {user.get_full_name()} ({user.username}) for {officer.organization.name}',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(
+                request,
+                f'Officer account created successfully! '
+                f'Username: {user.username} | Organization: {officer.organization.name}'
+            )
+            return redirect('officer_dashboard')
+        else:
+            context = {
+                'form': form,
+                'user_organization': request.user.officer_profile.organization if hasattr(request.user, 'officer_profile') else None
+            }
+            return render(request, self.template_name, context)
+
+
 class StudentRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     def test_func(self):
         user = self.request.user
@@ -566,7 +622,26 @@ class OrganizationHierarchyMixin(LoginRequiredMixin, UserPassesTestMixin):
         if hasattr(user, 'officer_profile'):
             return user.officer_profile.can_promote_officers or user.officer_profile.is_super_officer
         return False
+
+
+class AllOrgAdminMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """
+    Allows ALLORG officers (can_create_officers=True) to perform admin CRUD operations
+    on organizations. Also allows staff/superusers.
+    """
+    def test_func(self):
+        user = self.request.user
+        # Allow staff/superusers
+        if user.is_staff:
+            return True
+        # Allow ALLORG officers with officer creation privilege
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_create_officers
+        return False
     
+    def handle_no_permission(self):
+        messages.error(self.request, "Administrator access required. Only ALLORG administrators can manage organizations.")
+        return redirect('officer_dashboard')
     def handle_no_permission(self):
         messages.error(self.request, "Officer with promotion authority required.")
         return redirect('login')
@@ -1443,7 +1518,7 @@ class PaymentRequestStatusAPI(LoginRequiredMixin, View):
             return JsonResponse({'status': 'INVALID_ID'}, status=400)
 
 
-class CreateOrganizationView(StaffRequiredMixin, CreateView):
+class CreateOrganizationView(AllOrgAdminMixin, CreateView):
     model = Organization
     form_class = OrganizationForm
     template_name = 'admin/create_form.html'
@@ -1466,7 +1541,7 @@ class CreateFeeTypeView(StaffRequiredMixin, CreateView):
         return context
 
 # organization crud
-class OrganizationListView(StaffRequiredMixin, ListView):
+class OrganizationListView(AllOrgAdminMixin, ListView):
     model = Organization
     template_name = 'admin/organization_list.html'
     context_object_name = 'organizations'
@@ -1475,12 +1550,12 @@ class OrganizationListView(StaffRequiredMixin, ListView):
     def get_queryset(self):
         return Organization.objects.all().order_by('name')
 
-class OrganizationDetailView(StaffRequiredMixin, DetailView):
+class OrganizationDetailView(AllOrgAdminMixin, DetailView):
     model = Organization
     template_name = 'admin/organization_detail.html'
     context_object_name = 'organization'
 
-class OrganizationUpdateView(StaffRequiredMixin, UpdateView):
+class OrganizationUpdateView(AllOrgAdminMixin, UpdateView):
     model = Organization
     form_class = OrganizationForm
     template_name = 'admin/update_form.html'
@@ -1491,7 +1566,7 @@ class OrganizationUpdateView(StaffRequiredMixin, UpdateView):
         context['title'] = f"Update Organization: {self.object.name}"
         return context
 
-class OrganizationDeleteView(StaffRequiredMixin, DeleteView):
+class OrganizationDeleteView(AllOrgAdminMixin, DeleteView):
     model = Organization
     template_name = 'admin/delete_confirm.html'
     success_url = reverse_lazy('organization_list')

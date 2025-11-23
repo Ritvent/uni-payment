@@ -30,8 +30,9 @@ def create_promotion_authority_officers():
             'last_name': 'Organizations',
             'employee_id': 'ALL_001',
             'role': 'College Administrator',
-            'description': 'Can promote/demote in ALL organizations',
-            'program_affiliation': 'ALL'
+            'description': 'Can promote/demote in ALL organizations, create new officer accounts, and manage all organizations',
+            'program_affiliation': 'ALL',
+            'can_create_officers': True
         },
         {
             'org_name': 'Medical Biology',
@@ -107,13 +108,14 @@ def create_promotion_authority_officers():
             'org_name': 'Compendium',
             'org_code': 'COMPENDIUM',
             'org_level': 'COLLEGE',
+            'parent_org_code': 'ALLORG',
             'username': 'compendium_officer',
             'password': 'Compendium@123',
             'first_name': 'Compendium',
             'last_name': 'Officer',
             'employee_id': 'COMPENDIUM_001',
             'role': 'College Publication Editor',
-            'description': 'Can promote/demote in Compendium (college publication)',
+            'description': 'Can promote/demote in Compendium (college-level publication under College of Sciences)',
             'program_affiliation': 'COMPENDIUM'
         }
     ]
@@ -126,8 +128,9 @@ def create_promotion_authority_officers():
         print(f"Creating: {config['org_name']}")
         print(f"{'='*80}")
         
-        # Get or create parent organization first
-        if config['org_level'] == 'COLLEGE':
+        # Determine if this is ALLORG (root college level) or has a parent
+        if config['org_code'] == 'ALLORG':
+            # ALLORG is the root college-level organization
             org, created = Organization.objects.get_or_create(
                 code=config['org_code'],
                 defaults={
@@ -143,7 +146,7 @@ def create_promotion_authority_officers():
             )
             parent_org = org
             print(f"✓ Organization created: {org.name}")
-        else:
+        elif 'parent_org_code' in config:
             # Get parent organization
             try:
                 parent = Organization.objects.get(code=config.get('parent_org_code'))
@@ -167,6 +170,9 @@ def create_promotion_authority_officers():
             )
             print(f"✓ Organization created: {org.name}")
             print(f"  Parent: {parent.name}")
+        else:
+            print(f"ERROR: Configuration missing parent organization information!")
+            continue
         
         # Create or update user
         user, user_created = User.objects.get_or_create(
@@ -196,6 +202,7 @@ def create_promotion_authority_officers():
                 'can_void_payments': True,
                 'can_generate_reports': True,
                 'can_promote_officers': True,  # ✅ PROMOTION AUTHORITY
+                'can_create_officers': config.get('can_create_officers', False),  # ✅ OFFICER CREATION (ALLORG only)
                 'is_super_officer': False
             }
         )
@@ -203,6 +210,7 @@ def create_promotion_authority_officers():
         # Update if already exists (to ensure promotion authority is set)
         if not officer_created:
             officer.can_promote_officers = True
+            officer.can_create_officers = config.get('can_create_officers', False)
             officer.organization = org
             officer.save()
             print(f"✓ Officer updated: {officer.employee_id}")
@@ -262,6 +270,8 @@ def create_promotion_authority_officers():
        - Login as: all_org_officer (AllOrg@123)
        - Should see: All organizations and all students
        - Can promote: Officers from any organization
+       - Can create: New officer accounts from scratch ✨
+       - Can manage: All organizations (Create, Read, Update, Delete) ✨
        
     2. Test Program-Level Access - Medical Biology:
        - Login as: medbio_officer (MedBio@123)
@@ -288,10 +298,11 @@ def create_promotion_authority_officers():
        - Should see: Only Environmental Science students/officers
        - Can promote: Only within Environmental Science
     
-    7. Test College-Level Access - Compendium:
+    7. Test College-Level Publication Access - Compendium:
        - Login as: compendium_officer (Compendium@123)
-       - Should see: Only Compendium students/officers
-       - Can promote: Only within Compendium
+       - Should see: Compendium publication data and related organizations
+       - Can promote: Compendium staff/officers
+       - Note: Compendium collects payments from all College of Sciences programs
     
     🔒 SECURITY VERIFICATION:
     
@@ -310,12 +321,21 @@ def create_promotion_authority_officers():
     ✓ all_org_officer sees: ALL students & officers
     
     ✨ FEATURE VERIFICATION:
-    
+
     ✓ "Promote Officer" button visible: YES (all have promotion authority)
     ✓ "Demote Officer" button visible: YES (all have promotion authority)
+    ✓ "Create Officer" button visible: YES (ALLORG only - special ability)
+    ✓ "Manage Organizations" button visible: YES (ALLORG only - special ability)
+    ✓ "New Organization" button visible: YES (ALLORG only - special ability)
     ✓ Can promote students to officers: YES (within accessible orgs)
     ✓ Can demote officers to students: YES (within accessible orgs)
+    ✓ Can create new officer accounts: YES (ALLORG only - from scratch)
+    ✓ Can create organizations: YES (ALLORG only)
+    ✓ Can update organizations: YES (ALLORG only)
+    ✓ Can delete organizations: YES (ALLORG only)
+    ✓ Can view organizations: YES (ALLORG only)
     ✓ Can assign can_promote_officers permission: ADMIN ONLY
+    ✓ Can assign can_create_officers permission: ADMIN ONLY
     """
     
     print(instructions)
@@ -325,18 +345,22 @@ def create_promotion_authority_officers():
     print("ORGANIZATION HIERARCHY")
     print("="*80)
     print("""
-    ALL Organizations (COLLEGE LEVEL)
+    ALL Organizations (COLLEGE LEVEL) - Root Organization
     ├── Medical Biology (PROGRAM LEVEL)
     ├── Marine Biology (PROGRAM LEVEL)
     ├── Information Technology (PROGRAM LEVEL)
     ├── Computer Science (PROGRAM LEVEL)
-    └── Environmental Science (PROGRAM LEVEL)
+    ├── Environmental Science (PROGRAM LEVEL)
+    └── Compendium (COLLEGE LEVEL - College Publication, under College of Sciences)
     
-    Compendium (COLLEGE LEVEL - College Publication)
+    💡 HIERARCHY EXPLANATION:
     
-    All officers at program level have access to their program only.
-    All organization admin (all_org_officer) has access to all organizations.
-    Compendium officer has access to Compendium only.
+    ✓ All program-level organizations have ALLORG as parent
+    ✓ Compendium is college-level and also has ALLORG as parent
+    ✓ Compendium collects payments from ALL programs under College of Sciences
+    ✓ Program officers see only their program
+    ✓ ALLORG officer sees all organizations and programs
+    ✓ Compendium officer manages college publication and can see related programs
     """)
     
     print("="*80 + "\n")

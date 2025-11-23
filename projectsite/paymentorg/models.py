@@ -371,6 +371,11 @@ class Officer(BaseModel):
         verbose_name="Can Promote Officers",
         help_text="Allow this officer to promote students to officers and grant promotion permissions"
     )
+    can_create_officers = models.BooleanField(
+        default=False,
+        verbose_name="Can Create Officers",
+        help_text="Allow this officer to create new officer accounts from scratch (ALLORG privilege)"
+    )
     is_super_officer = models.BooleanField(
         default=False,
         verbose_name="Super Officer",
