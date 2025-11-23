@@ -470,13 +470,9 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
             
             user = officer.user
             
-            # Remove officer permissions
-            officer.can_promote_officers = False
-            officer.can_process_payments = False
-            officer.can_void_payments = False
-            officer.can_generate_reports = False
-            officer.is_super_officer = False
-            officer.save()
+            # Delete the Officer object completely to make user eligible for re-promotion
+            officer_id = officer.id
+            officer.delete()
             
             # Update/create UserProfile to remove officer flag
             UserProfile.objects.update_or_create(
