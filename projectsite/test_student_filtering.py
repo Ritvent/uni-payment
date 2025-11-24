@@ -41,7 +41,7 @@ print("\n3. Testing Officer Access:")
 print("-" * 80)
 officers = Officer.objects.filter(is_active=True)
 for officer in officers[:3]:  # Test first 3 officers
-    print(f"\nOfficer: {officer.first_name} {officer.last_name}")
+    print(f"\nOfficer: {officer.get_full_name()}")
     print(f"Organization: {officer.organization.name} ({officer.organization.program_affiliation})")
     print(f"Can Promote: {officer.can_promote_officers}")
     

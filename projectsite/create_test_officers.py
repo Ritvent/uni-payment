@@ -93,11 +93,6 @@ def create_test_officers():
     college_officer, _ = Officer.objects.get_or_create(
         user=college_user,
         defaults={
-            'employee_id': 'COLLEGE_001',
-            'first_name': 'College',
-            'last_name': 'Officer',
-            'email': 'college_officer@unipay.local',
-            'phone_number': '555-0001',
             'organization': college_org,
             'role': 'College Administrator',
             'can_process_payments': True,
@@ -155,11 +150,6 @@ def create_test_officers():
     cs_officer, _ = Officer.objects.get_or_create(
         user=cs_user,
         defaults={
-            'employee_id': 'CS_001',
-            'first_name': 'CS',
-            'last_name': 'Officer',
-            'email': 'cs_officer@unipay.local',
-            'phone_number': '555-0002',
             'organization': cs_org,
             'role': 'Treasurer',
             'can_process_payments': True,
@@ -217,11 +207,6 @@ def create_test_officers():
     es_officer, _ = Officer.objects.get_or_create(
         user=es_user,
         defaults={
-            'employee_id': 'ES_001',
-            'first_name': 'EnvSci',
-            'last_name': 'Officer',
-            'email': 'es_officer@unipay.local',
-            'phone_number': '555-0003',
             'organization': es_org,
             'role': 'President',
             'can_process_payments': True,

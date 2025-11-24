@@ -82,11 +82,6 @@ class Command(BaseCommand):
             officer, created = Officer.objects.get_or_create(
                 user=user,
                 defaults={
-                    'employee_id': config['employee_id'],
-                    'first_name': config['first_name'],
-                    'last_name': config['last_name'],
-                    'email': f"{config['username']}@unipay.local",
-                    'phone_number': '555-0000',
                     'organization': org,
                     'role': config['role'],
                     'can_process_payments': True,

@@ -32,7 +32,6 @@
                         <th>Course</th>
                         <th>Year Level</th>
                         <th>Email</th>
-                        <th>Academic Year</th>
                         <th>Pending Payments</th>
                         <th>Actions</th>
                     </tr>
@@ -45,7 +44,6 @@
                         <td>{{ student.course }}</td>
                         <td>{{ student.year_level }}</td>
                         <td>{{ student.email }}</td>
-                        <td>{{ student.academic_year }} - {{ student.semester }}</td>
                         <td>
                             {% if student.get_pending_payments_count > 0 %}
                                 <span class="badge bg-warning">{{ student.get_pending_payments_count }}</span>
@@ -61,7 +59,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted">No students found.</td>
+                        <td colspan="7" class="text-center text-muted">No students found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

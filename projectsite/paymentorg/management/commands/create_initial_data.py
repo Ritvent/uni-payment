@@ -162,11 +162,6 @@ class Command(BaseCommand):
             Officer.objects.get_or_create(
                 user=user,
                 defaults={
-                    "employee_id": f"EMP-{org.code}",
-                    "first_name": "Org",
-                    "last_name": org.code,
-                    "email": user.email,
-                    "phone_number": "0917-123-4567",
                     "organization": org,
                     "role": "Treasurer",
                     "can_process_payments": True,
@@ -193,11 +188,6 @@ class Command(BaseCommand):
             Officer.objects.get_or_create(
                 user=su_officer,
                 defaults={
-                    "employee_id": "EMP-SUPER",
-                    "first_name": "Super",
-                    "last_name": "Officer",
-                    "email": su_officer.email,
-                    "phone_number": "0917-111-1111",
                     "organization": organizations[0],
                     "role": "Administrator",
                     "can_process_payments": True,
@@ -235,8 +225,6 @@ class Command(BaseCommand):
                     "course": default_course,
                     "year_level": 4,
                     "college": default_college,
-                    "academic_year": "2024-2025",
-                    "semester": "1st Semester",
                 },
             )
         self.stdout.write(self.style.SUCCESS("Superusers ensured (user/pass: superofficer admin123, superstudent admin123)."))
@@ -289,8 +277,6 @@ class Command(BaseCommand):
                         "course": selected_course,
                         "year_level": randint(1, 4),
                         "college": selected_college,
-                        "academic_year": "2024-2025",
-                        "semester": "1st Semester",
                     },
                 )
                 students.append(student)

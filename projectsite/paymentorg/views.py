@@ -195,9 +195,9 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
         # Allow staff/superusers
         if user.is_staff:
             return True
-        # Allow officers with promotion authority
+        # Allow officers with promotion authority or super officer
         if hasattr(user, 'officer_profile'):
-            return user.officer_profile.can_promote_officers
+            return user.officer_profile.can_promote_officers or user.officer_profile.is_super_officer
         return False
     
     def handle_no_permission(self):
@@ -321,6 +321,7 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
             can_void_payments = form.cleaned_data['can_void_payments']
             can_generate_reports = form.cleaned_data.get('can_generate_reports', False)
             can_promote_officers = form.cleaned_data.get('can_promote_officers', False)
+            is_super_officer = form.cleaned_data.get('is_super_officer', False)
             
             # Verify user can promote to this organization
             # For program-level officers, ensure they're only assigning to their own org
@@ -336,6 +337,11 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
                     if can_promote_officers and not request.user.officer_profile.can_promote_officers:
                         messages.warning(request, "Only administrators and officers with promotion authority can grant promotion to others.")
                         can_promote_officers = False
+                    
+                    # Only super officers/admins can grant super officer status
+                    if is_super_officer and not (request.user.is_superuser or request.user.officer_profile.is_super_officer):
+                        messages.warning(request, "Only administrators and super officers can grant super officer status.")
+                        is_super_officer = False
             
             user = student.user
             
@@ -343,17 +349,13 @@ class PromoteStudentToOfficerView(LoginRequiredMixin, UserPassesTestMixin, View)
             officer, created = Officer.objects.update_or_create(
                 user=user,
                 defaults={
-                    'employee_id': student.student_id_number,  # Use student ID as employee ID
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                    'phone_number': getattr(student, 'phone_number', ''),
                     'organization': organization,
                     'role': role,
                     'can_process_payments': can_process_payments,
                     'can_void_payments': can_void_payments,
                     'can_generate_reports': can_generate_reports,
                     'can_promote_officers': can_promote_officers,
+                    'is_super_officer': is_super_officer,
                 }
             )
             
@@ -410,9 +412,9 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
         # Allow staff/superusers
         if user.is_staff:
             return True
-        # Allow officers with promotion authority
+        # Allow officers with promotion authority or super officer
         if hasattr(user, 'officer_profile'):
-            return user.officer_profile.can_promote_officers
+            return user.officer_profile.can_promote_officers or user.officer_profile.is_super_officer
         return False
     
     def handle_no_permission(self):
@@ -530,13 +532,11 @@ class CreateOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
     
     def test_func(self):
         user = self.request.user
-        # Only ALLORG officer can create officers
-        if hasattr(user, 'officer_profile'):
-            return user.officer_profile.can_create_officers
-        return False
+        # Only superusers can create officers from scratch
+        return user.is_superuser
     
     def handle_no_permission(self):
-        messages.error(self.request, "Only administrators with officer creation privileges can access this page.")
+        messages.error(self.request, "Only administrators can access this page.")
         return redirect('officer_dashboard')
     
     def get(self, request):
@@ -612,7 +612,7 @@ class ListOfficersInOrgView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return Officer.objects.filter(
             is_active=True,
             organization_id__in=org_ids
-        ).select_related('user', 'organization').order_by('organization', 'last_name', 'first_name')
+        ).select_related('user', 'organization').order_by('organization', 'user__last_name', 'user__first_name')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -678,9 +678,10 @@ class StudentRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         # Allow access if user has student profile OR is an officer (officers can view their student dashboard too)
         has_student_profile = hasattr(user, 'student_profile')
         is_officer = False
-        if hasattr(user, 'user_profile'):
-            is_officer = user.user_profile.is_officer
-        elif hasattr(user, 'officer_profile'):
+        if hasattr(user, 'user_profile') and user.user_profile.is_officer:
+            is_officer = True
+        # Always treat presence of officer_profile as officer regardless of user_profile flag
+        if hasattr(user, 'officer_profile'):
             is_officer = True
         return has_student_profile or is_officer or user.is_superuser
     
@@ -693,9 +694,10 @@ class OfficerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         user = self.request.user
         # Unified login: Check Officer Status Flag
         is_officer = False
-        if hasattr(user, 'user_profile'):
-            is_officer = user.user_profile.is_officer
-        elif hasattr(user, 'officer_profile'):
+        if hasattr(user, 'user_profile') and user.user_profile.is_officer:
+            is_officer = True
+        # Presence of officer_profile should grant officer access even if user_profile flag not yet synced
+        if hasattr(user, 'officer_profile'):
             is_officer = True
         return is_officer or user.is_superuser
     
@@ -757,7 +759,7 @@ class OrganizationHierarchyMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 class AllOrgAdminMixin(LoginRequiredMixin, UserPassesTestMixin):
     """
-    Allows ALLORG officers (can_create_officers=True) to perform admin CRUD operations
+    Allows ALLORG officers (is_super_officer=True) to perform admin CRUD operations
     on organizations. Also allows staff/superusers.
     """
     def test_func(self):
@@ -765,9 +767,9 @@ class AllOrgAdminMixin(LoginRequiredMixin, UserPassesTestMixin):
         # Allow staff/superusers
         if user.is_staff:
             return True
-        # Allow ALLORG officers with officer creation privilege
+        # Allow super officers to manage organizations
         if hasattr(user, 'officer_profile'):
-            return user.officer_profile.can_create_officers
+            return user.officer_profile.is_super_officer
         return False
     
     def handle_no_permission(self):
@@ -1162,7 +1164,7 @@ class OfficerDashboardView(OfficerRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
-        if user.is_superuser:
+        if user.is_superuser and not hasattr(user, 'officer_profile'):
             messages.info(self.request, "Superuser: Displaying system-wide statistics.")
             
             context.update({
@@ -1234,7 +1236,7 @@ class ProcessPaymentRequestView(OfficerRequiredMixin, View):
             
         user = self.request.user
         
-        if not user.is_superuser:
+        if not (user.is_superuser or (hasattr(user, 'officer_profile') and user.officer_profile.is_super_officer)):
             officer = user.officer_profile
             # Check if officer has access to this payment request's organization
             accessible_org_ids = officer.organization.get_accessible_organization_ids()
@@ -1449,8 +1451,6 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
             # Get all students belonging to this organization
             # Simply get all active students (they belong to the organization implicitly)
             students = Student.objects.filter(
-                academic_year=academic_year,
-                semester=semester,
                 is_active=True
             ).distinct()
             
@@ -1557,12 +1557,14 @@ class VoidPaymentView(OfficerRequiredMixin, UpdateView):
         user = self.request.user
         if user.is_superuser:
             return True
-        return hasattr(user, 'officer_profile') and user.officer_profile.can_void_payments
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_void_payments or user.officer_profile.is_super_officer
+        return False
 
     def get_object(self):
         user = self.request.user
         
-        if user.is_superuser:
+        if user.is_superuser or (hasattr(user, 'officer_profile') and user.officer_profile.is_super_officer):
             payment = get_object_or_404(Payment, pk=self.kwargs['pk'])
         else:
             # Get payment and verify officer has access to the payment's organization
@@ -1893,12 +1895,11 @@ class OfficerListView(SuperOfficerOrStaffMixin, ListView):
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
-                Q(employee_id__icontains=search) |
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(email__icontains=search)
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(user__email__icontains=search)
             )
-        return queryset.order_by('organization__name', 'last_name')
+        return queryset.order_by('organization__name', 'user__last_name')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1969,7 +1970,7 @@ class OfficerDeleteView(SuperOfficerOrStaffMixin, DeleteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = "Delete Officer"
-        context['object_name'] = f"{self.object.employee_id} - {self.object.get_full_name()}"
+        context['object_name'] = f"{self.object.get_full_name()}"
         return context
 
 # payment request management

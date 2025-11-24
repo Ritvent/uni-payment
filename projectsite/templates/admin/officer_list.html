@@ -36,7 +36,6 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Employee ID</th>
                         <th>Name</th>
                         <th>Organization</th>
                         <th>Role</th>
@@ -48,7 +47,6 @@
                 <tbody>
                     {% for officer in officers %}
                     <tr>
-                        <td><strong>{{ officer.employee_id }}</strong></td>
                         <td>{{ officer.get_full_name }}</td>
                         <td>{{ officer.organization.code }}</td>
                         <td>{{ officer.role }}</td>
@@ -66,7 +64,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted">No officers found.</td>
+                        <td colspan="6" class="text-center text-muted">No officers found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

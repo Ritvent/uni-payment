@@ -190,8 +190,6 @@ def create_promotion_authority_officers():
         officer, officer_created = Officer.objects.get_or_create(
             user=user,
             defaults={
-                'email': f"{config['username']}@unipay.local",
-                'phone_number': '555-0000',
                 'organization': org,
                 'role': config['role'],
                 'can_process_payments': True,

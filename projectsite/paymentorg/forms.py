@@ -102,16 +102,6 @@ class StudentRegistrationForm(UserCreationForm):
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
         
-        academic_year = Student._meta.get_field('academic_year').default
-        semester = Student._meta.get_field('semester').default
-        
-        try:
-            current_period = AcademicYearConfig.objects.get(is_current=True)
-            academic_year = current_period.academic_year
-            semester = current_period.semester
-        except Exception:
-            pass
-
         if commit:
             user.save()
             Student.objects.create(
@@ -123,9 +113,7 @@ class StudentRegistrationForm(UserCreationForm):
                 phone_number=self.cleaned_data['phone_number'],
                 course=self.cleaned_data['course'],
                 year_level=self.cleaned_data['year_level'],
-                college=self.cleaned_data['college'],
-                academic_year=academic_year,
-                semester=semester
+                college=self.cleaned_data['college']
             )
             # Create/update UserProfile with Officer Status Flag (False for students)
             UserProfile.objects.get_or_create(
@@ -171,30 +159,9 @@ class StudentRegistrationForm(UserCreationForm):
         self.fields['course'].widget.attrs.setdefault('class', 'form-select')
 
 class OfficerRegistrationForm(UserCreationForm):
-    employee_id = forms.CharField(
-        max_length=20,
-        label="Employee/Officer ID",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    first_name = forms.CharField(
-        max_length=100,
-        label="First Name",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    last_name = forms.CharField(
-        max_length=100,
-        label="Last Name",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
     email = forms.EmailField(
         label="Email Address",
         widget=forms.EmailInput(attrs={'class': 'form-control'})
-    )
-    phone_number = forms.CharField(
-        max_length=15,
-        label="Phone Number",
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        required=False
     )
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.filter(is_active=True),
@@ -214,16 +181,9 @@ class OfficerRegistrationForm(UserCreationForm):
             'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Choose a Username'}),
         }
 
-    def clean_employee_id(self):
-        employee_id = self.cleaned_data['employee_id']
-        if Officer.objects.filter(employee_id=employee_id).exists():
-            raise ValidationError("This employee ID is already registered.")
-        return employee_id
-
     def clean_email(self):
         email = self.cleaned_data['email']
-        if User.objects.filter(email=email).exists() or \
-           Officer.objects.filter(email=email).exists():
+        if User.objects.filter(email=email).exists():
             raise ValidationError("This email is already registered.")
         return email
 
@@ -231,19 +191,12 @@ class OfficerRegistrationForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
-        user.first_name = self.cleaned_data['first_name']
-        user.last_name = self.cleaned_data['last_name']
         
         if commit:
             user.save()
             # Create Officer profile
             Officer.objects.create(
                 user=user,
-                employee_id=self.cleaned_data['employee_id'],
-                first_name=self.cleaned_data['first_name'],
-                last_name=self.cleaned_data['last_name'],
-                email=self.cleaned_data['email'],
-                phone_number=self.cleaned_data['phone_number'],
                 organization=self.cleaned_data['organization'],
                 role=self.cleaned_data['role']
             )
@@ -291,6 +244,13 @@ class PromoteStudentToOfficerForm(forms.Form):
         initial=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         help_text="Grant this officer FULL promotion authority to promote/demote students and other officers in their organization?"
+    )
+    is_super_officer = forms.BooleanField(
+        label="Super Officer (Full Access to Officer Panel)",
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text="Grant this officer super officer status to access all officer panel features (View Officers, View Students, Promote, Demote, Process Payments, etc.)"
     )
     
     def __init__(self, *args, student_queryset=None, organization_queryset=None, **kwargs):
@@ -618,25 +578,18 @@ class VoidPaymentForm(forms.Form):
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['first_name', 'last_name', 'middle_name', 'email', 'phone_number']
+        fields = ['year_level', 'phone_number', 'middle_name']
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'middle_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'year_level': forms.NumberInput(attrs={'class': 'form-control'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'middle_name': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
 class OfficerForm(forms.ModelForm):
     class Meta:
         model = Officer
-        fields = ['first_name', 'last_name', 'email', 'phone_number']
-        widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-        }
+        fields = []
+        widgets = {}
 
 class OrganizationForm(forms.ModelForm):
     class Meta:
@@ -690,30 +643,9 @@ class AcademicYearConfigForm(forms.ModelForm):
 
 class CreateOfficerForm(UserCreationForm):
     """Form for ALLORG to create brand new officer accounts"""
-    employee_id = forms.CharField(
-        max_length=20,
-        label="Employee/Officer ID",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., EMP-001'})
-    )
-    first_name = forms.CharField(
-        max_length=100,
-        label="First Name",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    last_name = forms.CharField(
-        max_length=100,
-        label="Last Name",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
     email = forms.EmailField(
         label="Email Address",
         widget=forms.EmailInput(attrs={'class': 'form-control'})
-    )
-    phone_number = forms.CharField(
-        max_length=15,
-        label="Phone Number",
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        required=False
     )
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.filter(is_active=True),
@@ -752,6 +684,13 @@ class CreateOfficerForm(UserCreationForm):
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         help_text="Allow this officer to promote/demote students in their organization?"
     )
+    is_super_officer = forms.BooleanField(
+        label="Super Officer (Full Access to Officer Panel)",
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text="Grant this officer super officer status to access all officer panel features"
+    )
 
     class Meta:
         model = User
@@ -760,15 +699,9 @@ class CreateOfficerForm(UserCreationForm):
             'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Choose a Username'}),
         }
 
-    def clean_employee_id(self):
-        employee_id = self.cleaned_data['employee_id']
-        if Officer.objects.filter(employee_id=employee_id).exists():
-            raise ValidationError("This employee ID is already in use.")
-        return employee_id
-
     def clean_email(self):
         email = self.cleaned_data['email']
-        if User.objects.filter(email=email).exists() or Officer.objects.filter(email=email).exists():
+        if User.objects.filter(email=email).exists():
             raise ValidationError("This email is already registered.")
         return email
 
@@ -776,8 +709,6 @@ class CreateOfficerForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
-        user.first_name = self.cleaned_data['first_name']
-        user.last_name = self.cleaned_data['last_name']
         user.is_staff = True
         
         if commit:
@@ -785,17 +716,13 @@ class CreateOfficerForm(UserCreationForm):
             # Create Officer profile
             Officer.objects.create(
                 user=user,
-                employee_id=self.cleaned_data['employee_id'],
-                first_name=self.cleaned_data['first_name'],
-                last_name=self.cleaned_data['last_name'],
-                email=self.cleaned_data['email'],
-                phone_number=self.cleaned_data['phone_number'],
                 organization=self.cleaned_data['organization'],
                 role=self.cleaned_data['role'],
                 can_process_payments=self.cleaned_data['can_process_payments'],
                 can_void_payments=self.cleaned_data['can_void_payments'],
                 can_generate_reports=self.cleaned_data['can_generate_reports'],
                 can_promote_officers=self.cleaned_data['can_promote_officers'],
+                is_super_officer=self.cleaned_data.get('is_super_officer', False),
             )
             # Create UserProfile with Officer Status Flag
             UserProfile.objects.get_or_create(

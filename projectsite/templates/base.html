@@ -82,7 +82,7 @@
                                         Demote Officer
                                     </a>
                                 {% endif %}
-                                {% if user.officer_profile.can_create_officers %}
+                                {% if user.is_superuser %}
                                     <a href="{% url 'create_officer' %}" class="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-2">
                                         <i data-lucide="user-plus" class="w-4 h-4"></i>
                                         Create Officer
@@ -131,7 +131,7 @@
                                         Demote Officer
                                     </a>
                                 {% endif %}
-                                {% if user.officer_profile.can_create_officers %}
+                                {% if user.is_superuser %}
                                     <a href="{% url 'create_officer' %}" class="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-2">
                                         <i data-lucide="user-plus" class="w-4 h-4"></i>
                                         Create Officer
@@ -228,7 +228,7 @@
                                     Demote Officer
                                 </a>
                             {% endif %}
-                            {% if user.officer_profile.can_create_officers %}
+                            {% if user.is_superuser %}
                                 <a href="{% url 'create_officer' %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-100 rounded-lg font-medium transition-colors flex items-center gap-2">
                                     <i data-lucide="user-plus" class="w-4 h-4"></i>
                                     Create Officer

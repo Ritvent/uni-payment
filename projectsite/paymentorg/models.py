@@ -171,27 +171,11 @@ class Student(BaseModel):
     phone_number = models.CharField(
         max_length=15, 
         verbose_name="Phone Number",
-        help_text="Format: 09XX-XXX-XXXX"
+        help_text="Format: 09XX-XXX-XXXX",
+        blank=True,
+        null=True
     )
     
-    # Enrollment Info
-    academic_year = models.CharField(
-        max_length=20,
-        verbose_name="Academic Year",
-        help_text="e.g., 2024-2025",
-        default="2024-2025"
-    )
-    semester = models.CharField(
-        max_length=20,
-        verbose_name="Current Semester",
-        choices=[
-            ('1st Semester', '1st Semester'),
-            ('2nd Semester', '2nd Semester'),
-            ('Summer', 'Summer'),
-        ],
-        default='1st Semester'
-    )
-
     class Meta:
         verbose_name = "Student"
         verbose_name_plural = "Students"
@@ -332,13 +316,6 @@ class Officer(BaseModel):
         on_delete=models.CASCADE, 
         related_name='officer_profile'
     )
-    employee_id = models.CharField(
-        max_length=20, 
-        unique=True, 
-        verbose_name="Employee/Officer ID"
-    )
-    first_name = models.CharField(max_length=100, verbose_name="First Name")
-    last_name = models.CharField(max_length=100, verbose_name="Last Name")
     
     organization = models.ForeignKey(
         'Organization',
@@ -371,31 +348,51 @@ class Officer(BaseModel):
         verbose_name="Can Promote Officers",
         help_text="Allow this officer to promote students to officers and grant promotion permissions"
     )
-    can_create_officers = models.BooleanField(
-        default=False,
-        verbose_name="Can Create Officers",
-        help_text="Allow this officer to create new officer accounts from scratch (ALLORG privilege)"
-    )
     is_super_officer = models.BooleanField(
         default=False,
         verbose_name="Super Officer",
         help_text="Can access admin data for all students under this organization"
     )
-    
-    # Contact
-    email = models.EmailField(verbose_name="Email Address")
-    phone_number = models.CharField(max_length=15, verbose_name="Phone Number")
 
     class Meta:
         verbose_name = "Officer"
         verbose_name_plural = "Officers"
-        ordering = ['organization', 'last_name']
+        ordering = ['organization', 'user__last_name']
 
     def __str__(self):
         return f"{self.get_full_name()} - {self.organization.code}"
 
     def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.user.first_name} {self.user.last_name}"
+
+    @property
+    def email(self):
+        return self.user.email
+
+# === Signals to keep UserProfile.is_officer in sync with Officer existence ===
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Officer)
+def ensure_user_profile_officer(sender, instance, created, **kwargs):
+    """Ensure the related UserProfile exists and is marked as officer when an Officer is saved."""
+    from .models import UserProfile  # local import to avoid circular issues
+    UserProfile.objects.update_or_create(
+        user=instance.user,
+        defaults={'is_officer': True}
+    )
+
+@receiver(post_delete, sender=Officer)
+def unset_user_profile_officer(sender, instance, **kwargs):
+    """Unset officer flag when Officer profile is removed (if user still has profile)."""
+    from .models import UserProfile
+    try:
+        up = UserProfile.objects.get(user=instance.user)
+        # Only unset if no other officer profile (one-to-one so always none)
+        up.is_officer = False
+        up.save(update_fields=['is_officer'])
+    except UserProfile.DoesNotExist:
+        pass
 
 
 # ============================================

@@ -15,11 +15,13 @@ class StudentInline(admin.StackedInline):
     model = Student
     can_delete = False
     verbose_name_plural = 'Student Profile'
+    fields = ('student_id_number', 'first_name', 'last_name', 'middle_name', 'email', 'phone_number', 'course', 'year_level', 'college', 'is_active')
     
 class OfficerInline(admin.StackedInline):
     model = Officer
     can_delete = False
     verbose_name_plural = 'Officer Profile'
+    fields = ('organization', 'role', 'can_process_payments', 'can_void_payments', 'can_generate_reports', 'can_promote_officers', 'is_super_officer', 'is_active')
 
 class CustomUserAdmin(UserAdmin):
     inlines = [StudentInline, OfficerInline]
@@ -64,7 +66,7 @@ class StudentAdmin(admin.ModelAdmin):
         'year_level', 'college', 'pending_payments_count_display', 'is_active'
     )
     list_display_links = ('student_id_number', 'get_full_name_display')
-    list_filter = ('college', 'course', 'year_level', 'academic_year', 'semester', 'is_active')
+    list_filter = ('college', 'course', 'year_level', 'is_active')
     search_fields = ('student_id_number', 'first_name', 'last_name', 'email')
     readonly_fields = ('created_at', 'updated_at')
     list_editable = ('is_active',)
@@ -78,7 +80,7 @@ class StudentAdmin(admin.ModelAdmin):
             'fields': ('first_name', 'last_name', 'middle_name', 'email', 'phone_number')
         }),
         ('Academic Information', {
-            'fields': ('course', 'year_level', 'college', 'academic_year', 'semester')
+            'fields': ('course', 'year_level', 'college')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -100,19 +102,34 @@ class StudentAdmin(admin.ModelAdmin):
 @admin.register(Officer)
 class OfficerAdmin(admin.ModelAdmin):
     list_display = (
-        'employee_id', 'get_full_name_display', 'organization', 'role',
-        'can_process_payments', 'can_void_payments', 'is_active'
+        'get_full_name_display', 'organization', 'role',
+        'can_process_payments', 'can_void_payments', 'can_promote_officers', 'is_super_officer', 'is_active'
     )
-    list_display_links = ('employee_id', 'get_full_name_display')
-    list_filter = ('organization', 'role', 'can_process_payments', 'can_void_payments', 'is_active')
-    search_fields = ('employee_id', 'first_name', 'last_name', 'email', 'organization__code')
-    list_editable = ('can_process_payments', 'can_void_payments', 'is_active')
+    list_display_links = ('get_full_name_display',)
+    list_filter = ('organization', 'role', 'can_process_payments', 'can_void_payments', 'can_promote_officers', 'is_super_officer', 'is_active')
+    search_fields = ('user__first_name', 'user__last_name', 'user__email', 'organization__code')
+    list_editable = ('can_process_payments', 'can_void_payments', 'can_promote_officers', 'is_super_officer', 'is_active')
     list_per_page = 50
+    readonly_fields = ('created_at', 'updated_at')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'organization', 'role', 'is_active')
+        }),
+        ('Permissions', {
+            'fields': ('can_process_payments', 'can_void_payments', 'can_generate_reports', 'can_promote_officers', 'is_super_officer'),
+            'description': 'Configure officer permissions and access levels'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def get_full_name_display(self, obj):
         return obj.get_full_name()
     get_full_name_display.short_description = 'Full Name'
-    get_full_name_display.admin_order_field = 'last_name'
+    get_full_name_display.admin_order_field = 'user__last_name'
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
