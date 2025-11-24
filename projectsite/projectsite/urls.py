@@ -95,6 +95,7 @@ urlpatterns = [
     path('staff/students/list-in-org/', views.ListStudentsInOrgView.as_view(), name='list_students_in_org'),
     path('staff/officers/promote/', views.PromoteStudentToOfficerView.as_view(), name='promote_student_to_officer'),
     path('staff/officers/demote/', views.DemoteOfficerToStudentView.as_view(), name='demote_officer_to_student'),
+    path('staff/officers/set-super/', views.SetSuperOfficerView.as_view(), name='set_super_officer'),
     
     path('staff/payment-requests/', views.PaymentRequestListView.as_view(), name='paymentrequest_list'),
     path('staff/payment-requests/<uuid:pk>/', views.PaymentRequestDetailView.as_view(), name='paymentrequest_detail'),

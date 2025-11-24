@@ -73,28 +73,6 @@
                                         <i data-lucide="book-open" class="w-4 h-4"></i>
                                         View Students
                                     </a>
-                                    <a href="{% url 'promote_student_to_officer' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="user-check" class="w-4 h-4"></i>
-                                        Promote Officer
-                                    </a>
-                                    <a href="{% url 'demote_officer_to_student' %}" class="px-4 py-2 text-gray-700 hover:text-red-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="user-x" class="w-4 h-4"></i>
-                                        Demote Officer
-                                    </a>
-                                {% endif %}
-                                {% if user.is_superuser %}
-                                    <a href="{% url 'create_officer' %}" class="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="user-plus" class="w-4 h-4"></i>
-                                        Create Officer
-                                    </a>
-                                    <a href="{% url 'organization_list' %}" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="building-2" class="w-4 h-4"></i>
-                                        Manage Organizations
-                                    </a>
-                                    <a href="{% url 'create_organization' %}" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="building" class="w-4 h-4"></i>
-                                        New Organization
-                                    </a>
                                 {% endif %}
                             {% endif %}
                             {% if user.is_superuser %}
@@ -102,50 +80,20 @@
                                     <i data-lucide="cog" class="w-4 h-4"></i>
                                     Admin
                                 </a>
-                                <a href="{% url 'organization_list' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="building" class="w-4 h-4"></i>
+                                <a href="{% url 'organization_list' %}" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center gap-2">
+                                    <i data-lucide="building-2" class="w-4 h-4"></i>
                                     Organizations
-                                </a>
-                                <a href="{% url 'promote_student_to_officer' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="user-check" class="w-4 h-4"></i>
-                                    Promote Officer
                                 </a>
                             {% endif %}
                         {% elif user.student_profile %}
-                            <a href="{% url 'officer_dashboard' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
-                                <i data-lucide="cash-register" class="w-4 h-4"></i>
-                                Officer Panel
+                            <a href="{% url 'student_dashboard' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
+                                <i data-lucide="chart-line" class="w-4 h-4"></i>
+                                Dashboard
                             </a>
-                            {% if user.officer_profile %}
-                                <a href="{% url 'officer_profile_update' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                    Profile
-                                </a>
-                                {% if user.officer_profile.is_super_officer or user.officer_profile.can_promote_officers %}
-                                    <a href="{% url 'promote_student_to_officer' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="user-check" class="w-4 h-4"></i>
-                                        Promote Officer
-                                    </a>
-                                    <a href="{% url 'demote_officer_to_student' %}" class="px-4 py-2 text-gray-700 hover:text-red-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="user-x" class="w-4 h-4"></i>
-                                        Demote Officer
-                                    </a>
-                                {% endif %}
-                                {% if user.is_superuser %}
-                                    <a href="{% url 'create_officer' %}" class="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="user-plus" class="w-4 h-4"></i>
-                                        Create Officer
-                                    </a>
-                                    <a href="{% url 'organization_list' %}" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="building-2" class="w-4 h-4"></i>
-                                        Manage Organizations
-                                    </a>
-                                    <a href="{% url 'create_organization' %}" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center gap-2">
-                                        <i data-lucide="building" class="w-4 h-4"></i>
-                                        New Organization
-                                    </a>
-                                {% endif %}
-                            {% endif %}
+                            <a href="{% url 'student_profile_update' %}" class="px-4 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors flex items-center gap-2">
+                                <i data-lucide="user-circle" class="w-4 h-4"></i>
+                                Profile
+                            </a>
                             {% if user.is_superuser %}
                                 <a href="/admin/" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors flex items-center gap-2">
                                     <i data-lucide="cog" class="w-4 h-4"></i>
@@ -219,28 +167,6 @@
                                     <i data-lucide="book-open" class="w-4 h-4"></i>
                                     View Students
                                 </a>
-                                <a href="{% url 'promote_student_to_officer' %}" class="block px-4 py-2 text-gray-700 hover:bg-green-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="user-check" class="w-4 h-4"></i>
-                                    Promote Officer
-                                </a>
-                                <a href="{% url 'demote_officer_to_student' %}" class="block px-4 py-2 text-gray-700 hover:bg-red-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="user-x" class="w-4 h-4"></i>
-                                    Demote Officer
-                                </a>
-                            {% endif %}
-                            {% if user.is_superuser %}
-                                <a href="{% url 'create_officer' %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="user-plus" class="w-4 h-4"></i>
-                                    Create Officer
-                                </a>
-                                <a href="{% url 'organization_list' %}" class="block px-4 py-2 text-gray-700 hover:bg-purple-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="building-2" class="w-4 h-4"></i>
-                                    Manage Organizations
-                                </a>
-                                <a href="{% url 'create_organization' %}" class="block px-4 py-2 text-gray-700 hover:bg-purple-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                    <i data-lucide="building" class="w-4 h-4"></i>
-                                    New Organization
-                                </a>
                             {% endif %}
                         {% endif %}
                         {% if user.is_superuser %}
@@ -248,17 +174,9 @@
                                 <i data-lucide="cog" class="w-4 h-4"></i>
                                 Admin
                             </a>
-                            <a href="{% url 'organization_list' %}" class="block px-4 py-2 text-gray-700 hover:bg-green-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                <i data-lucide="building" class="w-4 h-4"></i>
+                            <a href="{% url 'organization_list' %}" class="block px-4 py-2 text-gray-700 hover:bg-purple-100 rounded-lg font-medium transition-colors flex items-center gap-2">
+                                <i data-lucide="building-2" class="w-4 h-4"></i>
                                 Organizations
-                            </a>
-                            <a href="{% url 'promote_student_to_officer' %}" class="block px-4 py-2 text-gray-700 hover:bg-green-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                <i data-lucide="user-check" class="w-4 h-4"></i>
-                                Promote Officer
-                            </a>
-                            <a href="{% url 'demote_officer_to_student' %}" class="block px-4 py-2 text-gray-700 hover:bg-red-100 rounded-lg font-medium transition-colors flex items-center gap-2">
-                                <i data-lucide="user-x" class="w-4 h-4"></i>
-                                Demote Officer
                             </a>
                         {% endif %}
                     {% elif user.student_profile %}

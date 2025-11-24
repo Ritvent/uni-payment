@@ -526,6 +526,127 @@ class DemoteOfficerToStudentView(LoginRequiredMixin, UserPassesTestMixin, View):
             return render(request, self.template_name, context)
 
 
+class SetSuperOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """View to set/unset super officer flag on an officer"""
+    
+    def test_func(self):
+        user = self.request.user
+        # Allow superusers
+        if user.is_superuser:
+            return True
+        # Allow officers with promotion authority or super officer
+        if hasattr(user, 'officer_profile'):
+            return user.officer_profile.can_promote_officers or user.officer_profile.is_super_officer
+        return False
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to set super officer status.")
+        return redirect('officer_dashboard')
+    
+    def post(self, request):
+        student_id = request.POST.get('student_id')
+        action = request.POST.get('action', 'toggle_super_officer')  # 'toggle_super_officer' or 'toggle_superuser'
+        
+        try:
+            student = Student.objects.get(id=student_id)
+            
+            # Handle superuser toggle (only by superusers)
+            if action == 'toggle_superuser':
+                if not request.user.is_superuser:
+                    messages.error(request, "Only superusers can modify superuser status.")
+                    return redirect('list_students_in_org')
+                
+                # Toggle superuser status
+                student.user.is_superuser = not student.user.is_superuser
+                student.user.save()
+                
+                # Also make/revoke staff status
+                student.user.is_staff = student.user.is_superuser
+                student.user.save()
+                
+                # Log the action
+                action_text = "granted" if student.user.is_superuser else "revoked"
+                ActivityLog.objects.create(
+                    user=request.user,
+                    action='set_superuser',
+                    description=f'{action_text.capitalize()} Superuser status to {student.user.get_full_name()}',
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                
+                if student.user.is_superuser:
+                    messages.success(
+                        request,
+                        f'{student.user.get_full_name()} is now a Superuser with full system access.'
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f'{student.user.get_full_name()} is no longer a Superuser.'
+                    )
+                return redirect('list_students_in_org')
+            
+            # Handle super officer toggle (existing logic)
+            # Verify student is an officer
+            if not hasattr(student.user, 'officer_profile'):
+                messages.error(request, f"{student.user.get_full_name()} is not an officer yet.")
+                return redirect('list_students_in_org')
+            
+            officer = student.user.officer_profile
+            
+            # Prevent non-superusers from modifying superusers
+            if not request.user.is_superuser and student.user.is_superuser:
+                messages.error(request, "You don't have permission to modify superuser status.")
+                return redirect('list_students_in_org')
+            
+            # Only superusers and super officers can change super officer status
+            # Normal officers (non-super officer) cannot make anyone a super officer
+            if hasattr(request.user, 'officer_profile') and not request.user.officer_profile.is_super_officer and not request.user.is_superuser:
+                messages.error(request, "Only super officers and superusers can manage super officer status.")
+                return redirect('list_students_in_org')
+            
+            # Prevent non-superusers from modifying super officers
+            if not request.user.is_superuser and officer.is_super_officer:
+                messages.error(request, "You don't have permission to modify super officer status.")
+                return redirect('list_students_in_org')
+            
+            # Verify user can modify this officer
+            if not request.user.is_superuser:
+                if hasattr(request.user, 'officer_profile'):
+                    accessible_org_ids = request.user.officer_profile.organization.get_accessible_organization_ids()
+                    if officer.organization.id not in accessible_org_ids:
+                        messages.error(request, "You don't have permission to modify officers in that organization.")
+                        return redirect('list_students_in_org')
+            
+            # Toggle super officer flag
+            officer.is_super_officer = not officer.is_super_officer
+            officer.save()
+            
+            # Log the action
+            action_text = "granted" if officer.is_super_officer else "revoked"
+            ActivityLog.objects.create(
+                user=request.user,
+                action='set_super_officer',
+                description=f'{action_text.capitalize()} Super Officer status to {student.user.get_full_name()}',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            if officer.is_super_officer:
+                messages.success(
+                    request,
+                    f'{student.user.get_full_name()} has been granted Super Officer status and can now manage their organization hierarchy.'
+                )
+            else:
+                messages.success(
+                    request,
+                    f'{student.user.get_full_name()} has had Super Officer status revoked.'
+                )
+            
+        except Student.DoesNotExist:
+            messages.error(request, "Student not found.")
+        
+        return redirect('list_students_in_org')
+
+
 class CreateOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
     """ALLORG-only view to create brand new officer accounts from scratch"""
     template_name = 'registration/create_officer.html'
@@ -616,7 +737,21 @@ class ListOfficersInOrgView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['user_organization'] = self.request.user.officer_profile.organization if hasattr(self.request.user, 'officer_profile') else None
+        user = self.request.user
+        context['user_organization'] = user.officer_profile.organization if hasattr(user, 'officer_profile') else None
+        
+        # Add permission flags to each officer
+        if hasattr(user, 'officer_profile'):
+            officer = user.officer_profile
+            for off in context['officers']:
+                # Normal officers can only demote regular officers, not super officers or superusers
+                off.can_demote = (not off.user.is_superuser and not off.is_super_officer and 
+                                 officer.can_promote_officers)
+                # Only super officers and superusers can make someone a super officer
+                off.can_make_super_officer = (not off.user.is_superuser and officer.is_super_officer)
+                # Only superusers can make someone a superuser
+                off.can_make_superuser = user.is_superuser and not off.user.is_superuser
+        
         return context
 
 
@@ -666,9 +801,37 @@ class ListStudentsInOrgView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         if hasattr(user, 'officer_profile'):
             officer = user.officer_profile
             context['user_organization'] = officer.organization
-            # Mark students who are already promoted
+            # Mark students who are already promoted and get their role info
             for student in context['students']:
                 student.is_promoted = hasattr(student.user, 'officer_profile') and student.user.officer_profile is not None
+                student.is_super_officer = False
+                student.is_superuser = student.user.is_superuser
+                
+                if student.is_promoted:
+                    student_officer = student.user.officer_profile
+                    student.is_super_officer = student_officer.is_super_officer
+                    student.officer_org = student_officer.organization.name
+                
+                # Determine role label
+                if student.is_superuser:
+                    student.role_label = "Superuser"
+                elif student.is_super_officer:
+                    student.role_label = "Super Officer"
+                elif student.is_promoted:
+                    student.role_label = "Officer"
+                else:
+                    student.role_label = "Student"
+                
+                # Determine if can be promoted/demoted
+                student.can_promote = not student.is_promoted and not student.is_superuser and officer.can_promote_officers
+                # Normal officers can only demote regular officers, not super officers or superusers
+                student.can_demote = (student.is_promoted and not student.is_superuser and 
+                                     not student.is_super_officer and officer.can_promote_officers)
+                # Only super officers and superusers can make someone a super officer
+                student.can_make_super_officer = (student.is_promoted and not student.is_superuser and 
+                                                 officer.is_super_officer)
+                # Only superusers can make someone a superuser
+                student.can_make_superuser = user.is_superuser and not student.is_superuser
         return context
 
 
