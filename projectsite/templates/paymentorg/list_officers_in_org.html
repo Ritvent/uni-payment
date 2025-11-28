@@ -4,98 +4,189 @@
 {% block title %}View Officers - UniPay{% endblock %}
 
 {% block content %}
-<div class="py-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Header -->
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                    <i data-lucide="users" class="w-8 h-8 text-indigo-600"></i>
-                    Officers in {{ user_organization.name }}
-                </h1>
-                <p class="text-gray-600 mt-2">Manage officers in your organization</p>
+<div class="py-6 md:py-8">
+    <div class="max-w-6xl mx-auto px-4 md:px-0">
+        <!-- Gradient Header Card -->
+        <div class="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 rounded-xl p-5 md:p-6 mb-6 shadow-lg relative overflow-hidden">
+            <!-- Decorative Elements -->
+            <div class="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-transparent"></div>
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 via-orange-500 to-orange-400"></div>
+            
+            <div class="relative z-10">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <h1 class="text-xl md:text-2xl font-bold text-white">View Officers</h1>
+                        </div>
+                        <p class="text-emerald-100 text-sm md:text-base">{{ user_organization.name }}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 md:gap-3">
+                        <a href="{% url 'promote_student_to_officer' %}" 
+                           class="px-3 md:px-4 py-2 bg-white text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors font-medium inline-flex items-center gap-2 text-sm shadow-md">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">Add Officer</span>
+                            <span class="sm:hidden">Add</span>
+                        </a>
+                        <a href="{% url 'officer_dashboard' %}" 
+                           class="px-3 md:px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-colors font-medium inline-flex items-center gap-2 text-sm border border-white/30">
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">Back</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Search Bar -->
+                <div class="relative">
+                    <i data-lucide="search" class="w-5 h-5 text-emerald-300 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" 
+                           id="search-input"
+                           placeholder="Search officers by name, email, or position..." 
+                           class="w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-white placeholder-emerald-200">
+                </div>
             </div>
-            <a href="{% url 'officer_dashboard' %}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
-                <i data-lucide="arrow-left" class="w-4 h-4"></i>
-                Back to Dashboard
-            </a>
         </div>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-6" role="alert">
-                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+            <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xl md:text-2xl font-bold text-gray-900">{{ officers|length }}</p>
+                        <p class="text-xs text-gray-500">Total Officers</p>
+                    </div>
                 </div>
-            {% endfor %}
-        {% endif %}
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="crown" class="w-5 h-5 text-purple-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xl md:text-2xl font-bold text-gray-900">{{ super_officer_count|default:0 }}</p>
+                        <p class="text-xs text-gray-500">Super Officers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="shield" class="w-5 h-5 text-indigo-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xl md:text-2xl font-bold text-gray-900">{{ superuser_count|default:0 }}</p>
+                        <p class="text-xs text-gray-500">Superusers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-orange-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xl md:text-2xl font-bold text-gray-900">{{ active_count|default:officers|length }}</p>
+                        <p class="text-xs text-gray-500">Active</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Officers List -->
+        <!-- Officers Table -->
         {% if officers %}
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50 border-b border-gray-200">
+                    <table class="w-full up-table-responsive" id="officers-table">
+                        <thead class="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                             <tr>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Officer Name</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Email</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Position</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Organization</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Role</th>
-                                <th class="px-6 py-4 text-center text-sm font-semibold text-gray-900">Actions</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Organization</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-4 md:px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {% for officer in officers %}
-                                <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="px-6 py-4">
-                                        <div class="font-medium text-gray-900">{{ officer.user.get_full_name }}</div>
+                                <tr class="hover:bg-gray-50 transition-colors officer-row">
+                                    <td class="px-4 md:px-6 py-4" data-label="Name">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                                {{ officer.user.first_name|slice:":1"|upper }}{{ officer.user.last_name|slice:":1"|upper }}
+                                            </div>
+                                            <p class="text-gray-900 font-medium">{{ officer.user.get_full_name }}</p>
+                                        </div>
                                     </td>
-                                    <td class="px-6 py-4 text-gray-600">{{ officer.user.email }}</td>
-                                    <td class="px-6 py-4 text-gray-600 text-sm">
+                                    <td class="px-4 md:px-6 py-4 text-gray-700 text-sm" data-label="Email">{{ officer.user.email }}</td>
+                                    <td class="px-4 md:px-6 py-4 text-gray-700 text-sm" data-label="Position">
                                         {% if officer.role %}
-                                            {{ officer.role }}
+                                            <span class="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                                {{ officer.role }}
+                                            </span>
                                         {% else %}
-                                            <span class="text-gray-400">Not assigned</span>
+                                            <span class="text-gray-400 text-sm">Not assigned</span>
                                         {% endif %}
                                     </td>
-                                    <td class="px-6 py-4 text-gray-600">{{ officer.organization.name }}</td>
-                                    <td class="px-6 py-4">
-                                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold
-                                            {% if officer.user.is_superuser %}
-                                                bg-indigo-100 text-indigo-700
-                                            {% elif officer.is_super_officer %}
-                                                bg-purple-100 text-purple-700
-                                            {% else %}
-                                                bg-emerald-100 text-emerald-700
-                                            {% endif %}">
-                                            {% if officer.user.is_superuser %}
-                                                <i data-lucide="shield" class="w-3 h-3"></i> Superuser
-                                            {% elif officer.is_super_officer %}
-                                                <i data-lucide="crown" class="w-3 h-3"></i> Super Officer
-                                            {% else %}
-                                                <i data-lucide="briefcase" class="w-3 h-3"></i> Officer
-                                            {% endif %}
-                                        </span>
+                                    <td class="px-4 md:px-6 py-4 text-gray-700 text-sm" data-label="Organization">{{ officer.organization.name }}</td>
+                                    <td class="px-4 md:px-6 py-4" data-label="Status">
+                                        {% if officer.user.is_superuser %}
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 rounded-full text-xs font-semibold border border-indigo-200 shadow-sm">
+                                                <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                                                Superuser
+                                            </span>
+                                        {% elif officer.is_super_officer %}
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 rounded-full text-xs font-semibold border border-purple-200 shadow-sm">
+                                                <i data-lucide="crown" class="w-3.5 h-3.5"></i>
+                                                Super Officer
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 rounded-full text-xs font-semibold border border-emerald-200 shadow-sm">
+                                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                                Active
+                                            </span>
+                                        {% endif %}
                                     </td>
-                                    <td class="px-6 py-4 text-center relative">
-                                        <button type="button" data-dropdown-toggle class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors">
-                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
-                                            </svg>
-                                        </button>
-                                        <div data-dropdown-menu class="hidden absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1">
-                                            <a href="{% url 'officer_detail' officer.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">View Details</a>
-                                            {% if officer.can_demote %}
-                                                <a href="{% url 'demote_officer_to_student' %}?officer_id={{ officer.id }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-b border-gray-100">Demote to Student</a>
-                                            {% endif %}
-                                            {% if officer.can_make_super_officer and not officer.user.is_superuser %}
-                                                <a href="#" onclick="setSuperOfficer(event, {{ officer.user.student_profile.id }}, '{{ officer.user.username }}')" class="block px-4 py-2 text-sm text-purple-600 hover:bg-purple-50">{% if officer.is_super_officer %}Revoke{% else %}Make{% endif %} Super Officer</a>
-                                            {% endif %}
-                                            {% if officer.can_make_superuser %}
-                                                <a href="#" onclick="setSuperuser(event, {{ officer.user.student_profile.id }}, '{{ officer.user.username }}')" class="block px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50 border-t border-gray-100">{% if officer.user.is_superuser %}Revoke{% else %}Make{% endif %} Superuser</a>
-                                            {% endif %}
+                                    <td class="px-4 md:px-6 py-4 text-center" data-label="Actions">
+                                        <div class="relative inline-block">
+                                            <button type="button" data-dropdown-toggle 
+                                                    class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                                                <i data-lucide="more-vertical" class="w-5 h-5"></i>
+                                            </button>
+                                            <div data-dropdown-menu class="hidden absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1">
+                                                <a href="{% url 'officer_detail' officer.id %}" 
+                                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                                    <i data-lucide="eye" class="w-4 h-4 inline mr-2"></i>
+                                                    View Details
+                                                </a>
+                                                {% if officer.can_demote %}
+                                                    <a href="{% url 'demote_officer_to_student' %}?officer_id={{ officer.id }}" 
+                                                       class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                                        <i data-lucide="arrow-down-circle" class="w-4 h-4 inline mr-2"></i>
+                                                        Demote to Student
+                                                    </a>
+                                                {% endif %}
+                                                {% if officer.can_make_super_officer and not officer.user.is_superuser %}
+                                                    <a href="#" onclick="setSuperOfficer(event, {{ officer.user.student_profile.id }}, '{{ officer.user.username }}')" 
+                                                       class="block px-4 py-2 text-sm text-purple-600 hover:bg-purple-50">
+                                                        <i data-lucide="crown" class="w-4 h-4 inline mr-2"></i>
+                                                        {% if officer.is_super_officer %}Revoke{% else %}Make{% endif %} Super Officer
+                                                    </a>
+                                                {% endif %}
+                                                {% if officer.can_make_superuser %}
+                                                    <a href="#" onclick="setSuperuser(event, {{ officer.user.student_profile.id }}, '{{ officer.user.username }}')" 
+                                                       class="block px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50 border-t border-gray-100">
+                                                        <i data-lucide="shield" class="w-4 h-4 inline mr-2"></i>
+                                                        {% if officer.user.is_superuser %}Revoke{% else %}Make{% endif %} Superuser
+                                                    </a>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -107,41 +198,58 @@
 
             <!-- Pagination -->
             {% if is_paginated %}
-                <div class="mt-6 flex justify-center gap-2">
+                <div class="mt-6 flex flex-wrap justify-center items-center gap-2">
                     {% if page_obj.has_previous %}
-                        <a href="?page=1" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium">First</a>
-                        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium">Previous</a>
+                        <a href="?page=1" class="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 shadow-sm">First</a>
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 rounded-lg text-sm font-medium shadow-sm">
+                            <i data-lucide="chevron-left" class="w-4 h-4 inline"></i> Prev
+                        </a>
                     {% endif %}
 
-                    <span class="px-3 py-2 text-sm">
+                    <span class="px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg">
                         Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
                     </span>
 
                     {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium">Next</a>
-                        <a href="?page={{ page_obj.paginator.num_pages }}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium">Last</a>
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 rounded-lg text-sm font-medium shadow-sm">
+                            Next <i data-lucide="chevron-right" class="w-4 h-4 inline"></i>
+                        </a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}" class="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 shadow-sm">Last</a>
                     {% endif %}
                 </div>
             {% endif %}
         {% else %}
-            <div class="bg-white rounded-lg shadow-md p-8 text-center">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                    <i data-lucide="users" class="w-8 h-8 text-gray-400"></i>
+            <div class="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center shadow-sm">
+                <div class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-emerald-200">
+                    <i data-lucide="users" class="w-8 h-8 text-emerald-500"></i>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No Officers Found</h3>
-                <p class="text-gray-600 mb-6">There are no officers in your organization yet.</p>
-                <a href="{% url 'promote_student_to_officer' %}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
-                    <i data-lucide="user-check" class="w-4 h-4"></i>
-                    Promote First Officer
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">No Officers Found</h3>
+                <p class="text-gray-600 mb-6 max-w-md mx-auto">There are no officers in your organization yet. Add your first officer to get started.</p>
+                <a href="{% url 'promote_student_to_officer' %}" 
+                   class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all font-medium inline-flex items-center gap-2 shadow-md">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i>
+                    Add First Officer
                 </a>
             </div>
         {% endif %}
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    lucide.createIcons();
-    
+    // Search functionality
+    document.getElementById('search-input').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('.officer-row');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+
+    // Dropdown functionality
     document.addEventListener('DOMContentLoaded', function() {
         const buttons = document.querySelectorAll('[data-dropdown-toggle]');
         
@@ -150,18 +258,13 @@
             
             button.addEventListener('click', function(e) {
                 e.stopPropagation();
-                // Close all other menus
                 document.querySelectorAll('[data-dropdown-menu]').forEach(m => {
-                    if (m !== menu) {
-                        m.classList.add('hidden');
-                    }
+                    if (m !== menu) m.classList.add('hidden');
                 });
-                // Toggle current menu
                 menu.classList.toggle('hidden');
             });
         });
         
-        // Close menu when clicking outside
         document.addEventListener('click', function() {
             document.querySelectorAll('[data-dropdown-menu]').forEach(menu => {
                 menu.classList.add('hidden');
@@ -174,26 +277,12 @@
         if (confirm(`Toggle Super Officer status for ${username}?`)) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = '{% url 'set_super_officer' %}';
-            
-            const studentIdInput = document.createElement('input');
-            studentIdInput.type = 'hidden';
-            studentIdInput.name = 'student_id';
-            studentIdInput.value = studentId;
-            
-            const actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            actionInput.value = 'toggle_super_officer';
-            
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = '{{ csrf_token }}';
-            
-            form.appendChild(studentIdInput);
-            form.appendChild(actionInput);
-            form.appendChild(csrfInput);
+            form.action = '{% url "set_super_officer" %}';
+            form.innerHTML = `
+                <input type="hidden" name="student_id" value="${studentId}">
+                <input type="hidden" name="action" value="toggle_super_officer">
+                <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            `;
             document.body.appendChild(form);
             form.submit();
         }
@@ -204,26 +293,12 @@
         if (confirm(`Toggle Superuser status for ${username}? This will grant/revoke full system access.`)) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = '{% url 'set_super_officer' %}';
-            
-            const studentIdInput = document.createElement('input');
-            studentIdInput.type = 'hidden';
-            studentIdInput.name = 'student_id';
-            studentIdInput.value = studentId;
-            
-            const actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            actionInput.value = 'toggle_superuser';
-            
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = '{{ csrf_token }}';
-            
-            form.appendChild(studentIdInput);
-            form.appendChild(actionInput);
-            form.appendChild(csrfInput);
+            form.action = '{% url "set_super_officer" %}';
+            form.innerHTML = `
+                <input type="hidden" name="student_id" value="${studentId}">
+                <input type="hidden" name="action" value="toggle_superuser">
+                <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            `;
             document.body.appendChild(form);
             form.submit();
         }

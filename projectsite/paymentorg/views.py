@@ -1051,9 +1051,12 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
             
             # Double-check the pending request hasn't expired (in case of race condition)
             has_valid_pending = False
+            has_qr_generated = False
             if pending_request:
                 if pending_request.expires_at > timezone.now():
                     has_valid_pending = True
+                    # Check if QR signature has been generated (student clicked "Generate QR")
+                    has_qr_generated = bool(pending_request.qr_signature)
                 else:
                     # Mark as expired if somehow it slipped through
                     pending_request.status = 'EXPIRED'
@@ -1068,6 +1071,7 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
                 'payment': payment,
                 'has_pending_request': has_valid_pending,
                 'pending_request': pending_request,
+                'has_qr_generated': has_qr_generated,  # True if student has clicked "Generate QR"
             }
             all_fees_with_status.append(fee_info)
         
@@ -1649,6 +1653,9 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
                 try:
                     logger.debug(f"Creating payment request for student {student.student_id_number}")
                     # create paymentrequest with unique request_id
+                    # NOTE: qr_signature is left empty - it will be generated when the student
+                    # explicitly clicks "Generate QR" on their dashboard. This ensures the
+                    # dashboard first shows "Generate QR" instead of "View QR" after posting.
                     payment_request = PaymentRequest.objects.create(
                         student=student,
                         organization=organization,
@@ -1657,14 +1664,10 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
                         payment_method='CASH',  # Default, student will select when generating QR
                         status='PENDING',
                         expires_at=timezone.now() + timedelta(days=30),  # Give students 30 days to pay
-                        qr_signature='',  # Will be generated when student creates QR
+                        qr_signature='',  # Will be generated when student clicks "Generate QR"
                         created_by=request.user,  # Track who posted this bulk payment
                         notes=notes
                     )
-                    
-                    # generate qr signature for the request_id
-                    payment_request.qr_signature = create_signature(str(payment_request.request_id))
-                    payment_request.save(update_fields=['qr_signature'])
                     
                     created_count += 1
                     logger.debug(f"Successfully created payment request {payment_request.request_id}")
@@ -2286,20 +2289,29 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
         payment = super().get_object(queryset)
         user = self.request.user
         
+        # Superusers can see all payments
+        if user.is_superuser:
+            return payment
+        
         # Students can only view their own payments
         if hasattr(user, 'student_profile'):
             if payment.student != user.student_profile:
                 raise Http404("Payment not found")
-        # Officers can only view payments from their organization
-        elif hasattr(user, 'officer_profile'):
-            accessible_org_ids = user.officer_profile.organization.get_accessible_organization_ids()
-            if payment.organization_id not in accessible_org_ids:
-                raise Http404("Payment not found in your organization")
-        # Superusers can see all
-        elif not user.is_superuser:
-            raise Http404("Payment not found")
+            return payment
         
-        return payment
+        # Officers can view payments from their organization or accessible orgs
+        if hasattr(user, 'officer_profile'):
+            officer = user.officer_profile
+            # Super officers can see all payments in their org hierarchy
+            if officer.is_super_officer:
+                return payment
+            # Regular officers can view payments from their organization + children
+            accessible_org_ids = officer.organization.get_accessible_organization_ids()
+            if payment.organization_id in accessible_org_ids:
+                return payment
+            raise Http404("Payment not found in your organization")
+        
+        raise Http404("Payment not found")
 
 # academic year config crud
 class AcademicYearConfigListView(StaffRequiredMixin, ListView):
@@ -2378,12 +2390,21 @@ class ReceiptDetailView(LoginRequiredMixin, DetailView):
     
     def get_queryset(self):
         user = self.request.user
+        # Superusers and staff can see all receipts
         if user.is_staff or user.is_superuser:
             return Receipt.objects.all()
+        # Students can only see their own receipts
         elif hasattr(user, 'student_profile'):
             return Receipt.objects.filter(payment__student=user.student_profile)
+        # Officers can see receipts from their org hierarchy
         elif hasattr(user, 'officer_profile'):
-            return Receipt.objects.filter(payment__organization=user.officer_profile.organization)
+            officer = user.officer_profile
+            # Super officers can see all receipts
+            if officer.is_super_officer:
+                return Receipt.objects.all()
+            # Regular officers can see receipts from their org + children
+            accessible_org_ids = officer.organization.get_accessible_organization_ids()
+            return Receipt.objects.filter(payment__organization_id__in=accessible_org_ids)
         return Receipt.objects.none()
 
 # activity log views
