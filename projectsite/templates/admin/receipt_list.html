@@ -53,7 +53,7 @@
                         </td>
                         <td>{{ receipt.created_at|date:"M d, Y" }}</td>
                         <td>
-                            <a href="{% url 'receipt_detail' receipt.pk %}" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'payment_detail' receipt.payment.pk %}" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
                         </td>
                     </tr>
                     {% empty %}

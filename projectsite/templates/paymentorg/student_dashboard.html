@@ -50,23 +50,23 @@
         </div>
         <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
             <div class="flex items-center gap-3">
-                <div class="p-2 bg-blue-100 rounded-lg">
-                    <i data-lucide="receipt" class="w-5 h-5 text-blue-600"></i>
+                <div class="p-2 bg-yellow-100 rounded-lg">
+                    <i data-lucide="circle-dollar-sign" class="w-5 h-5 text-yellow-600"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-600">Payments Made</p>
-                    <p class="text-xl font-semibold text-gray-900">{{ payments_count }}</p>
+                    <p class="text-sm text-gray-600">Unpaid</p>
+                    <p class="text-xl font-semibold text-gray-900">{{ unpaid_count }}</p>
                 </div>
             </div>
         </div>
         <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
             <div class="flex items-center gap-3">
-                <div class="p-2 bg-yellow-100 rounded-lg">
-                    <i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i>
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <i data-lucide="clock" class="w-5 h-5 text-blue-600"></i>
                 </div>
                 <div>
                     <p class="text-sm text-gray-600">Pending</p>
-                    <p class="text-xl font-semibold text-gray-900">{{ pending_payments.count }}</p>
+                    <p class="text-xl font-semibold text-gray-900">{{ pending_count }}</p>
                 </div>
             </div>
         </div>
@@ -82,7 +82,6 @@
             </div>
         </div>
     </div>
-
     <!-- Organization Fees Tab -->
     <div id="fees-tab" class="tab-content">
         <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -117,18 +116,18 @@
                                     </span>
                                 {% elif fee_info.has_pending_request and fee_info.has_qr_generated %}
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 rounded-full text-xs font-semibold border border-blue-200 shadow-sm">
-                                        <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                                        QR Generated
+                                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                                        Pending
                                     </span>
                                 {% elif fee_info.has_pending_request %}
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 shadow-sm">
-                                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-                                        Posted
+                                        <i data-lucide="circle-dollar-sign" class="w-3.5 h-3.5"></i>
+                                        Unpaid
                                     </span>
                                 {% else %}
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 rounded-full text-xs font-semibold border border-yellow-200 shadow-sm">
-                                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                                        Pending
+                                        <i data-lucide="circle-dollar-sign" class="w-3.5 h-3.5"></i>
+                                        Unpaid
                                     </span>
                                 {% endif %}
                             </td>

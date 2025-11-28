@@ -526,6 +526,53 @@ class BulkPaymentPostForm(forms.Form):
         }),
         help_text="Enter the amount for this fee"
     )
+    
+    SEMESTER_CHOICES = [
+        ('1st Semester', '1st Semester'),
+        ('2nd Semester', '2nd Semester'),
+        ('Summer', 'Summer'),
+    ]
+    
+    semester = forms.ChoiceField(
+        choices=SEMESTER_CHOICES,
+        label="Semester",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="Select the semester for this fee"
+    )
+    
+    academic_year = forms.CharField(
+        max_length=20,
+        label="Academic Year",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., 2024-2025'}),
+        help_text="Enter the academic year (e.g., 2024-2025)"
+    )
+    
+    YEAR_LEVEL_CHOICES = [
+        ('All', 'All Year Levels'),
+        ('1', '1st Year'),
+        ('2', '2nd Year'),
+        ('3', '3rd Year'),
+        ('4', '4th Year'),
+    ]
+    
+    applicable_year_level = forms.ChoiceField(
+        choices=YEAR_LEVEL_CHOICES,
+        label="Applicable Year Level",
+        initial='All',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="Select which year level this fee applies to"
+    )
+    
+    payment_deadline = forms.DateField(
+        required=False,
+        label="Payment Deadline (Optional)",
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        help_text="Optional: Set a deadline for this payment"
+    )
+    
     notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -539,6 +586,16 @@ class BulkPaymentPostForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
+        
+        # Set default values from current academic period
+        from .models import AcademicYearConfig
+        from django.utils import timezone
+        try:
+            current_period = AcademicYearConfig.objects.get(is_current=True)
+            self.fields['academic_year'].initial = current_period.academic_year
+            self.fields['semester'].initial = current_period.semester
+        except AcademicYearConfig.DoesNotExist:
+            self.fields['academic_year'].initial = f"{timezone.now().year}-{timezone.now().year + 1}"
     
     def clean_fee_type_name(self):
         name = self.cleaned_data['fee_type_name'].strip()
@@ -552,11 +609,23 @@ class BulkPaymentPostForm(forms.Form):
             raise ValidationError("Fee amount must be greater than zero.")
         return amount
     
-    def clean_or_number_prefix(self):
-        prefix = self.cleaned_data['or_number_prefix']
-        if not prefix:
-            raise ValidationError("OR number prefix is required.")
-        return prefix
+    def clean_academic_year(self):
+        year = self.cleaned_data['academic_year'].strip()
+        if not year:
+            raise ValidationError("Academic year is required.")
+        # Basic validation for format like "2024-2025"
+        import re
+        if not re.match(r'^\d{4}-\d{4}$', year):
+            raise ValidationError("Academic year must be in format YYYY-YYYY (e.g., 2024-2025)")
+        return year
+    
+    def clean_payment_deadline(self):
+        deadline = self.cleaned_data.get('payment_deadline')
+        if deadline:
+            from django.utils import timezone
+            if deadline < timezone.now().date():
+                raise ValidationError("Payment deadline cannot be in the past.")
+        return deadline
 
 class VoidPaymentForm(forms.Form):
     void_reason = forms.CharField(

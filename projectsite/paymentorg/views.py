@@ -8,10 +8,11 @@ from django.utils import timezone
 from django.db import transaction
 from django.views.generic import View, CreateView, UpdateView, DeleteView, ListView, DetailView, TemplateView
 from django.urls import reverse_lazy
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, HttpResponse
 import uuid
 import hmac
 import hashlib
+import csv
 from datetime import timedelta
 from django.conf import settings
 from decimal import Decimal
@@ -647,6 +648,75 @@ class SetSuperOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
         return redirect('list_students_in_org')
 
 
+class StepDownFromOfficerView(LoginRequiredMixin, View):
+    """Allow a super officer to voluntarily step down and become a student"""
+    template_name = 'registration/step_down_officer.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Only allow super officers to step down
+        if not hasattr(request.user, 'officer_profile'):
+            messages.error(request, "You must be an officer to access this page.")
+            return redirect('student_dashboard')
+        if not request.user.officer_profile.is_super_officer:
+            messages.error(request, "Only super officers can step down using this feature.")
+            return redirect('officer_dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get(self, request):
+        officer = request.user.officer_profile
+        context = {
+            'officer': officer,
+            'organization': officer.organization,
+        }
+        return render(request, self.template_name, context)
+    
+    @transaction.atomic
+    def post(self, request):
+        reason = request.POST.get('reason', '').strip()
+        confirm = request.POST.get('confirm', '')
+        
+        if confirm != 'STEP DOWN':
+            messages.error(request, "Please type 'STEP DOWN' to confirm.")
+            return redirect('officer_step_down')
+        
+        if not reason:
+            messages.error(request, "Please provide a reason for stepping down.")
+            return redirect('officer_step_down')
+        
+        officer = request.user.officer_profile
+        user = request.user
+        officer_name = officer.get_full_name()
+        org_name = officer.organization.name
+        
+        # Delete the Officer object
+        officer.delete()
+        
+        # Update UserProfile to remove officer flag
+        UserProfile.objects.update_or_create(
+            user=user,
+            defaults={'is_officer': False}
+        )
+        
+        # Refresh the user object to remove officer_profile
+        user = user.__class__.objects.get(pk=user.id)
+        update_session_auth_hash(request, user)
+        
+        # Log the action
+        ActivityLog.objects.create(
+            user=user,
+            action='officer_step_down',
+            description=f'{officer_name} voluntarily stepped down from Super Officer position at {org_name}. Reason: {reason}',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        messages.success(
+            request,
+            f'You have successfully stepped down from your officer position at {org_name}. '
+            f'You can continue using UniPay as a student.'
+        )
+        return redirect('student_dashboard')
+
+
 class CreateOfficerView(LoginRequiredMixin, UserPassesTestMixin, View):
     """ALLORG-only view to create brand new officer accounts from scratch"""
     template_name = 'registration/create_officer.html'
@@ -1042,6 +1112,9 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         
         # Build a comprehensive list of all fees with their payment status
         all_fees_with_status = []
+        pending_count = 0  # Fees with QR generated, awaiting confirmation
+        unpaid_count = 0   # Fees not yet paid (no payment request OR no QR generated)
+        
         for fee in applicable_fees:
             # Check if student has paid this fee
             payment = completed_payments.filter(fee_type=fee).first()
@@ -1063,6 +1136,13 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
                     pending_request.save()
                     pending_request = None
             
+            # Count for stats
+            if payment is None:  # Not paid
+                if has_qr_generated:
+                    pending_count += 1  # QR generated, waiting for confirmation
+                else:
+                    unpaid_count += 1   # Not paid and no QR generated yet
+            
             fee_info = {
                 'fee_type': fee,
                 'organization': fee.organization,
@@ -1081,6 +1161,8 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
             'completed_payments': completed_payments.order_by('-created_at')[:5],
             'total_paid': total_paid,
             'payments_count': payments_count,
+            'pending_count': pending_count,  # Fees with QR generated
+            'unpaid_count': unpaid_count,    # Fees without payment/QR
             'applicable_fees': applicable_fees,
             'tier1_fees': tier1_fees,
             'tier2_fees': tier2_fees,
@@ -1319,7 +1401,7 @@ class ShowPaymentQRView(StudentRequiredMixin, TemplateView):
             payment_request.status = 'EXPIRED'
             payment_request.save()
             
-        context['request'] = payment_request
+        context['payment_request'] = payment_request
         context['qr_data'] = f"PAYMENT_REQUEST|{payment_request.request_id}|{payment_request.qr_signature}"
         return context
 
@@ -1374,7 +1456,7 @@ class OfficerDashboardView(OfficerRequiredMixin, TemplateView):
                     status='COMPLETED',
                     is_void=False,
                     created_at__date=today
-                ).order_by('-created_at')[:5],
+                ).select_related('student', 'processed_by', 'receipt').order_by('-created_at')[:5],
             })
         return context
 
@@ -1403,12 +1485,26 @@ class ProcessPaymentRequestView(OfficerRequiredMixin, View):
             
         user = self.request.user
         
-        if not (user.is_superuser or (hasattr(user, 'officer_profile') and user.officer_profile.is_super_officer)):
+        # Check organization access - officers can only process payments for their organization scope
+        # Superusers (admin) can process any payment
+        # Super officers can only process payments within their organization hierarchy
+        if not user.is_superuser:
+            if not hasattr(user, 'officer_profile'):
+                messages.error(self.request, "You must be an officer to process payments.")
+                return None
+            
             officer = user.officer_profile
-            # Check if officer has access to this payment request's organization
+            # Get accessible organizations (officer's org + child orgs)
             accessible_org_ids = officer.organization.get_accessible_organization_ids()
+            
             if payment_request.organization_id not in accessible_org_ids:
-                messages.error(self.request, "This request is for a different organization.")
+                # Provide a clear error message about organization mismatch
+                messages.error(
+                    self.request, 
+                    f"This payment QR is for {payment_request.organization.name}. "
+                    f"You can only process payments for {officer.organization.name}"
+                    f"{' and its affiliated organizations' if len(accessible_org_ids) > 1 else ''}."
+                )
                 return None
         
         if payment_request.status != 'PENDING':
@@ -1587,15 +1683,10 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
             fee_type_name = form.cleaned_data['fee_type_name']
             fee_amount = form.cleaned_data['fee_amount']
             notes = form.cleaned_data.get('notes', '')
-            
-            # get current academic year and semester
-            try:
-                current_period = AcademicYearConfig.objects.get(is_current=True)
-                academic_year = current_period.academic_year
-                semester = current_period.semester
-            except AcademicYearConfig.DoesNotExist:
-                academic_year = timezone.now().year
-                semester = '1ST'
+            semester = form.cleaned_data['semester']
+            academic_year = form.cleaned_data['academic_year']
+            applicable_year_level = form.cleaned_data['applicable_year_level']
+            payment_deadline = form.cleaned_data.get('payment_deadline')
             
             # create or get fee type
             fee_type, created = FeeType.objects.get_or_create(
@@ -1605,21 +1696,27 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
                 semester=semester,
                 defaults={
                     'amount': fee_amount,
-                    'applicable_year_levels': 'All',
+                    'applicable_year_levels': applicable_year_level,
                     'is_active': True,
                 }
             )
             
             if not created:
-                # update amount if fee type already exists
+                # update amount and year level if fee type already exists
                 fee_type.amount = fee_amount
+                fee_type.applicable_year_levels = applicable_year_level
                 fee_type.save()
             
             # Get all students belonging to this organization
-            # Simply get all active students (they belong to the organization implicitly)
+            # Filter by year level if not "All"
             students = Student.objects.filter(
                 is_active=True
-            ).distinct()
+            )
+            
+            if applicable_year_level != 'All':
+                students = students.filter(year_level=applicable_year_level)
+            
+            students = students.distinct()
             
             # exclude students who already paid this fee
             paid_students = Payment.objects.filter(
@@ -1648,6 +1745,13 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
             
             logger.info(f"Starting bulk payment posting: {len(list(students))} eligible students found")
             
+            # Determine expiry date - use payment_deadline if provided, otherwise 30 days
+            if payment_deadline:
+                from datetime import datetime
+                expires_at = timezone.make_aware(datetime.combine(payment_deadline, datetime.max.time()))
+            else:
+                expires_at = timezone.now() + timedelta(days=30)
+            
             # create paymentrequest objects for each student
             for student in students:
                 try:
@@ -1663,7 +1767,7 @@ class PostBulkPaymentView(OfficerRequiredMixin, View):
                         amount=fee_amount,
                         payment_method='CASH',  # Default, student will select when generating QR
                         status='PENDING',
-                        expires_at=timezone.now() + timedelta(days=30),  # Give students 30 days to pay
+                        expires_at=expires_at,
                         qr_signature='',  # Will be generated when student clicks "Generate QR"
                         created_by=request.user,  # Track who posted this bulk payment
                         notes=notes
@@ -1807,6 +1911,10 @@ class PaymentRequestStatusAPI(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         request_id = self.kwargs['request_id']
         try:
+            # Check if user has student profile
+            if not hasattr(request.user, 'student_profile'):
+                return JsonResponse({'status': 'NOT_STUDENT', 'error': 'User is not a student'}, status=403)
+            
             payment_request = PaymentRequest.objects.get(
                 request_id=request_id,
                 student=request.user.student_profile
@@ -1827,7 +1935,9 @@ class PaymentRequestStatusAPI(LoginRequiredMixin, View):
             return JsonResponse(data)
             
         except PaymentRequest.DoesNotExist:
-            return JsonResponse({'status': 'NOT_FOUND'}, status=404)
+            return JsonResponse({'status': 'NOT_FOUND', 'error': 'Payment request not found'}, status=404)
+        except AttributeError as e:
+            return JsonResponse({'status': 'ERROR', 'error': str(e)}, status=500)
         except ValueError:
             return JsonResponse({'status': 'INVALID_ID'}, status=400)
 
@@ -1893,7 +2003,7 @@ class OrganizationDeleteView(AllOrgAdminMixin, DeleteView):
         return context
 
 # fee type crud
-class FeeTypeListView(StaffRequiredMixin, ListView):
+class FeeTypeListView(SuperOfficerOrStaffMixin, ListView):
     model = FeeType
     template_name = 'admin/feetype_list.html'
     context_object_name = 'fee_types'
@@ -1901,6 +2011,13 @@ class FeeTypeListView(StaffRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = FeeType.objects.select_related('organization').all()
+        
+        # Filter by organization scope for super officers
+        org = self.get_user_organization()
+        if org:
+            accessible_org_ids = org.get_accessible_organization_ids()
+            queryset = queryset.filter(organization_id__in=accessible_org_ids)
+        
         org_filter = self.request.GET.get('organization')
         if org_filter:
             queryset = queryset.filter(organization_id=org_filter)
@@ -1908,36 +2025,104 @@ class FeeTypeListView(StaffRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['organizations'] = Organization.objects.filter(is_active=True)
+        org = self.get_user_organization()
+        if org:
+            # Super officers only see their accessible organizations
+            accessible_org_ids = org.get_accessible_organization_ids()
+            context['organizations'] = Organization.objects.filter(id__in=accessible_org_ids, is_active=True)
+        else:
+            context['organizations'] = Organization.objects.filter(is_active=True)
+        context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
+        if context['is_super_officer']:
+            context['organization'] = self.request.user.officer_profile.organization
         return context
 
-class FeeTypeDetailView(StaffRequiredMixin, DetailView):
+class FeeTypeDetailView(SuperOfficerOrStaffMixin, DetailView):
     model = FeeType
     template_name = 'admin/feetype_detail.html'
     context_object_name = 'fee_type'
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = self.get_user_organization()
+        if org:
+            accessible_org_ids = org.get_accessible_organization_ids()
+            queryset = queryset.filter(organization_id__in=accessible_org_ids)
+        return queryset
 
-class FeeTypeUpdateView(StaffRequiredMixin, UpdateView):
+class FeeTypeUpdateView(SuperOfficerOrStaffMixin, UpdateView):
     model = FeeType
     form_class = FeeTypeForm
     template_name = 'admin/update_form.html'
     success_url = reverse_lazy('feetype_list')
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = self.get_user_organization()
+        if org:
+            accessible_org_ids = org.get_accessible_organization_ids()
+            queryset = queryset.filter(organization_id__in=accessible_org_ids)
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f"Update Fee Type: {self.object.name}"
         return context
 
-class FeeTypeDeleteView(StaffRequiredMixin, DeleteView):
+class FeeTypeDeleteView(SuperOfficerOrStaffMixin, DeleteView):
     model = FeeType
     template_name = 'admin/delete_confirm.html'
     success_url = reverse_lazy('feetype_list')
     context_object_name = 'fee_type'
     
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = self.get_user_organization()
+        if org:
+            accessible_org_ids = org.get_accessible_organization_ids()
+            queryset = queryset.filter(organization_id__in=accessible_org_ids)
+        return queryset
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = "Delete Fee Type"
         context['object_name'] = f"{self.object.organization.code} - {self.object.name}"
+        # Show warning about pending payments
+        pending_count = PaymentRequest.objects.filter(fee_type=self.object, status='PENDING').count()
+        if pending_count > 0:
+            context['warning'] = f"Warning: There are {pending_count} pending payment requests for this fee type. They will be cancelled."
         return context
+    
+    def form_valid(self, form):
+        fee_type = self.get_object()
+        user = self.request.user
+        
+        # Log the deletion for transparency
+        ActivityLog.objects.create(
+            user=user,
+            action='fee_type_deleted',
+            description=f'Deleted fee type "{fee_type.name}" (₱{fee_type.amount}) from {fee_type.organization.name}. '
+                       f'Academic Year: {fee_type.academic_year}, Semester: {fee_type.semester}.',
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+        
+        # Cancel any pending payment requests for this fee type
+        pending_requests = PaymentRequest.objects.filter(fee_type=fee_type, status='PENDING')
+        cancelled_count = pending_requests.count()
+        if cancelled_count > 0:
+            pending_requests.update(status='CANCELLED')
+            ActivityLog.objects.create(
+                user=user,
+                action='payment_requests_cancelled',
+                description=f'Cancelled {cancelled_count} pending payment requests due to fee type deletion: {fee_type.name}.',
+                ip_address=self.request.META.get('REMOTE_ADDR')
+            )
+        
+        messages.success(self.request, f'Fee type "{fee_type.name}" has been deleted successfully.')
+        if cancelled_count > 0:
+            messages.info(self.request, f'{cancelled_count} pending payment requests were cancelled.')
+        
+        return super().form_valid(form)
 
 # student crud
 class StudentListView(SuperOfficerOrStaffMixin, ListView):
@@ -2262,6 +2447,10 @@ class PaymentListView(LoginRequiredMixin, ListView):
         if date_to:
             queryset = queryset.filter(created_at__date__lte=date_to)
         
+        semester_filter = self.request.GET.get('semester')
+        if semester_filter:
+            queryset = queryset.filter(fee_type__semester=semester_filter)
+        
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
@@ -2274,11 +2463,116 @@ class PaymentListView(LoginRequiredMixin, ListView):
             'organization': self.request.GET.get('organization', ''),
             'date_from': self.request.GET.get('date_from', ''),
             'date_to': self.request.GET.get('date_to', ''),
+            'semester': self.request.GET.get('semester', ''),
         }
+        context['semester_choices'] = [
+            ('1st Semester', '1st Semester'),
+            ('2nd Semester', '2nd Semester'),
+        ]
         context['is_super_officer'] = hasattr(self.request.user, 'officer_profile') and self.request.user.officer_profile.is_super_officer
         if context['is_super_officer']:
             context['organization'] = self.request.user.officer_profile.organization
+        
+        # Calculate stats for the stats cards (use get_queryset to get unsliced queryset)
+        all_payments = self.get_queryset()
+        context['completed_count'] = all_payments.filter(is_void=False).count()
+        context['voided_count'] = all_payments.filter(is_void=True).count()
+        context['total_amount'] = all_payments.filter(is_void=False).aggregate(total=Sum('amount'))['total'] or 0
+        
         return context
+
+
+class ExportPaymentsView(LoginRequiredMixin, View):
+    """Export payments to CSV for officers"""
+    
+    def get(self, request):
+        user = request.user
+        
+        # Only officers and admins can export
+        if not hasattr(user, 'officer_profile') and not user.is_staff:
+            return Http404("Not authorized to export payments")
+        
+        # Build queryset with same filters as PaymentListView
+        queryset = Payment.objects.select_related(
+            'student', 'organization', 'fee_type', 'processed_by'
+        ).all()
+        
+        # Filter by organization if officer
+        if hasattr(user, 'officer_profile'):
+            accessible_org_ids = user.officer_profile.organization.get_accessible_organization_ids()
+            queryset = queryset.filter(organization_id__in=accessible_org_ids)
+        
+        # Apply filters
+        status_filter = request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        void_filter = request.GET.get('is_void')
+        if void_filter == 'true':
+            queryset = queryset.filter(is_void=True)
+        elif void_filter == 'false':
+            queryset = queryset.filter(is_void=False)
+        
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        
+        semester_filter = request.GET.get('semester')
+        if semester_filter:
+            queryset = queryset.filter(fee_type__semester=semester_filter)
+        
+        queryset = queryset.order_by('-created_at')
+        
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        response['Content-Disposition'] = f'attachment; filename="payments_export_{timestamp}.csv"'
+        
+        writer = csv.writer(response)
+        # Write header
+        writer.writerow([
+            'OR Number',
+            'Date',
+            'Student ID',
+            'Student Name',
+            'Organization',
+            'Fee Type',
+            'Semester',
+            'Academic Year',
+            'Amount',
+            'Amount Received',
+            'Change Given',
+            'Status',
+            'Is Void',
+            'Payment Method',
+            'Processed By',
+        ])
+        
+        # Write data rows
+        for payment in queryset:
+            writer.writerow([
+                payment.or_number,
+                payment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                payment.student.student_id_number,
+                payment.student.get_full_name(),
+                payment.organization.name,
+                payment.fee_type.name,
+                payment.fee_type.semester,
+                payment.fee_type.academic_year,
+                payment.amount,
+                payment.amount_received,
+                payment.change_given,
+                payment.status,
+                'Yes' if payment.is_void else 'No',
+                payment.get_payment_method_display() if hasattr(payment, 'get_payment_method_display') else payment.payment_method,
+                payment.processed_by.get_full_name() if payment.processed_by else 'N/A',
+            ])
+        
+        return response
+
 
 class PaymentDetailView(LoginRequiredMixin, DetailView):
     model = Payment
@@ -2293,23 +2587,25 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
         if user.is_superuser:
             return payment
         
-        # Students can only view their own payments
-        if hasattr(user, 'student_profile'):
-            if payment.student != user.student_profile:
-                raise Http404("Payment not found")
-            return payment
-        
         # Officers can view payments from their organization or accessible orgs
         if hasattr(user, 'officer_profile'):
             officer = user.officer_profile
-            # Super officers can see all payments in their org hierarchy
+            # Get accessible organizations (officer's org + child orgs)
+            accessible_org_ids = officer.organization.get_accessible_organization_ids()
+            # Allow if payment's organization is in officer's accessible orgs
+            # This allows fellow officers from the same org to view each other's processed payments
+            if payment.organization_id and payment.organization_id in accessible_org_ids:
+                return payment
+            # Super officers can also see payments in parent org hierarchy
             if officer.is_super_officer:
                 return payment
-            # Regular officers can view payments from their organization + children
-            accessible_org_ids = officer.organization.get_accessible_organization_ids()
-            if payment.organization_id in accessible_org_ids:
-                return payment
             raise Http404("Payment not found in your organization")
+        
+        # Students can only view their own payments
+        if hasattr(user, 'student_profile'):
+            if payment.student == user.student_profile:
+                return payment
+            raise Http404("Payment not found")
         
         raise Http404("Payment not found")
 
@@ -2397,13 +2693,15 @@ class ReceiptDetailView(LoginRequiredMixin, DetailView):
         elif hasattr(user, 'student_profile'):
             return Receipt.objects.filter(payment__student=user.student_profile)
         # Officers can see receipts from their org hierarchy
+        # This allows fellow officers from the same org to view each other's processed receipts
         elif hasattr(user, 'officer_profile'):
             officer = user.officer_profile
-            # Super officers can see all receipts
+            # Get accessible organizations (officer's org + child orgs)
+            accessible_org_ids = officer.organization.get_accessible_organization_ids()
+            # Super officers can see all receipts in their org + all from accessible orgs
             if officer.is_super_officer:
                 return Receipt.objects.all()
             # Regular officers can see receipts from their org + children
-            accessible_org_ids = officer.organization.get_accessible_organization_ids()
             return Receipt.objects.filter(payment__organization_id__in=accessible_org_ids)
         return Receipt.objects.none()
 

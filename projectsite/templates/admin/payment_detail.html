@@ -100,13 +100,9 @@
                     <i data-lucide="receipt" class="w-4 h-4 text-green-600"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-muted small">Receipt</div>
-                    <div class="d-flex align-items-center gap-2">
-                        <a href="{% url 'receipt_detail' payment.receipt.pk %}" class="fw-medium text-emerald-600 text-decoration-none hover:underline">View Receipt</a>
-                        {% if payment.receipt.email_sent %}
-                            <span class="badge bg-success-subtle text-success">Emailed</span>
-                        {% endif %}
-                    </div>
+                    <div class="text-muted small">Receipt Generated</div>
+                    <div class="fw-medium text-emerald-600">OR# {{ payment.receipt.or_number }}</div>
+                    <div class="text-muted small">{{ payment.receipt.created_at|date:"M d, Y h:i A" }}</div>
                 </div>
             </div>
             {% endif %}
@@ -138,6 +134,138 @@
         {% endif %}
     </div>
 </div>
+
+{% if payment.receipt %}
+<!-- Full Receipt Section -->
+<div class="up-card mt-4 overflow-hidden">
+    <div class="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 px-4 py-3">
+        <div class="d-flex align-items-center gap-2">
+            <i data-lucide="receipt" class="w-5 h-5 text-white"></i>
+            <h5 class="text-white mb-0 fw-semibold">Official Receipt</h5>
+        </div>
+    </div>
+    
+    <div class="card-body p-4">
+        <!-- OR Number & Date -->
+        <div class="text-center pb-3 border-bottom mb-3">
+            <p class="text-muted small text-uppercase mb-1">Official Receipt Number</p>
+            <p class="fs-3 fw-bold text-dark font-monospace mb-2">{{ payment.receipt.or_number }}</p>
+            <div class="d-flex justify-content-center gap-2 text-muted small">
+                <span>{{ payment.receipt.created_at|date:"M d, Y" }}</span>
+                <span>•</span>
+                <span>{{ payment.receipt.created_at|date:"h:i A" }}</span>
+            </div>
+        </div>
+        
+        <!-- Amount Summary -->
+        <div class="text-center py-3 border-bottom mb-3">
+            <p class="text-muted small text-uppercase mb-1">Amount Paid</p>
+            <p class="fs-2 fw-bold text-emerald-600">₱{{ payment.amount|floatformat:2 }}</p>
+            <div class="d-flex justify-content-center gap-4 mt-2 small">
+                <span class="text-muted">Received: <strong class="text-dark">₱{{ payment.amount_received|floatformat:2 }}</strong></span>
+                <span class="text-muted">Change: <strong class="text-dark">₱{{ payment.change_given|floatformat:2 }}</strong></span>
+            </div>
+        </div>
+        
+        <!-- Receipt Details -->
+        <div class="d-flex flex-column gap-2">
+            <!-- Student -->
+            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                <span class="text-muted small text-uppercase">Student</span>
+                <div class="text-end">
+                    <div class="fw-medium">{{ payment.student.get_full_name }}</div>
+                    <div class="text-muted small">{{ payment.student.student_id_number }}</div>
+                    <div class="text-muted small">{{ payment.student.user.email }}</div>
+                </div>
+            </div>
+            
+            <!-- Organization -->
+            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                <span class="text-muted small text-uppercase">Organization</span>
+                <div class="text-end">
+                    <div class="fw-medium">{{ payment.organization.name }}</div>
+                    <div class="text-muted small">{{ payment.organization.code }}</div>
+                </div>
+            </div>
+            
+            <!-- Fee Type -->
+            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                <span class="text-muted small text-uppercase">Fee Type</span>
+                <div class="text-end">
+                    <div class="fw-medium">{{ payment.fee_type.name }}</div>
+                    <div class="text-muted small">{{ payment.fee_type.semester }} • {{ payment.fee_type.academic_year }}</div>
+                </div>
+            </div>
+            
+            <!-- Payment Method -->
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span class="text-muted small text-uppercase">Payment Method</span>
+                <span class="d-inline-flex align-items-center gap-1 px-2 py-1 bg-light text-dark rounded small fw-medium">
+                    {% if payment.payment_method == 'CASH' %}
+                    <i data-lucide="banknote" class="w-4 h-4"></i>
+                    {% elif payment.payment_method == 'GCASH' %}
+                    <i data-lucide="smartphone" class="w-4 h-4"></i>
+                    {% else %}
+                    <i data-lucide="landmark" class="w-4 h-4"></i>
+                    {% endif %}
+                    {{ payment.get_payment_method_display }}
+                </span>
+            </div>
+            
+            <!-- Processed By -->
+            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                <span class="text-muted small text-uppercase">Processed By</span>
+                {% if payment.processed_by %}
+                <div class="text-end">
+                    <div class="fw-medium">{{ payment.processed_by.user.get_full_name }}</div>
+                    <div class="text-muted small">
+                        {% if payment.processed_by.role %}{{ payment.processed_by.role }}{% else %}Officer{% endif %}
+                        {% if payment.processed_by.is_super_officer %}<span class="text-purple-600">(Super)</span>{% endif %}
+                    </div>
+                    <div class="text-muted small">{{ payment.processed_by.user.email }}</div>
+                </div>
+                {% else %}
+                <span class="text-muted small">N/A</span>
+                {% endif %}
+            </div>
+            
+            <!-- Email Status -->
+            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                <span class="text-muted small text-uppercase">Email Notification</span>
+                <div class="text-end">
+                    {% if payment.receipt.email_sent %}
+                    <span class="d-inline-flex align-items-center gap-1 text-success small fw-medium">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Sent
+                    </span>
+                    <div class="text-muted small">{{ payment.receipt.email_sent_at|date:"M d, Y h:i A" }}</div>
+                    <div class="text-muted small">to {{ payment.student.user.email }}</div>
+                    {% else %}
+                    <span class="d-inline-flex align-items-center gap-1 text-muted small">
+                        <i data-lucide="x-circle" class="w-4 h-4"></i> Not Sent
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Verification -->
+            <div class="d-flex justify-content-between align-items-center py-2">
+                <span class="text-muted small text-uppercase">Verification</span>
+                <span class="d-inline-flex align-items-center gap-1 text-success small fw-medium">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i> Verified
+                </span>
+            </div>
+        </div>
+        
+        <!-- QR Code -->
+        {% if payment.receipt.receipt_qr %}
+        <div class="text-center mt-4 pt-3 border-top">
+            <img src="{{ payment.receipt.receipt_qr.url }}" alt="Receipt QR Code" class="img-fluid rounded" style="max-width: 120px;">
+            <p class="text-muted small mt-2">Scan to verify receipt</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

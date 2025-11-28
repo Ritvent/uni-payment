@@ -253,9 +253,19 @@ class Student(BaseModel):
         return all_fees
     
     def get_total_outstanding_fees(self):
-        """Calculate total amount of outstanding fees"""
+        """Calculate total amount of outstanding (unpaid) fees"""
         fees = self.get_applicable_fees()
-        return fees.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Get fee IDs that have been paid (completed payments, not voided)
+        paid_fee_ids = Payment.objects.filter(
+            student=self,
+            status='COMPLETED',
+            is_void=False
+        ).values_list('fee_type_id', flat=True)
+        
+        # Calculate total of unpaid fees only
+        unpaid_fees = fees.exclude(id__in=paid_fee_ids)
+        return unpaid_fees.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
     def get_tier1_fees(self):
         """Get Tier 1 (Program-specific) fees"""

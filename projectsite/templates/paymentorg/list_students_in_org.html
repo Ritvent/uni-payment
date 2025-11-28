@@ -175,6 +175,13 @@
                                                         Demote to Student
                                                     </a>
                                                 {% endif %}
+                                                {% if student.is_super_officer and student.user.id == request.user.id %}
+                                                    <a href="{% url 'officer_step_down' %}" 
+                                                       class="block px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 border-t border-gray-100">
+                                                        <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>
+                                                        Step Down
+                                                    </a>
+                                                {% endif %}
                                                 {% if student.can_make_super_officer and not student.is_superuser %}
                                                     <a href="#" onclick="setSuperOfficer(event, {{ student.id }}, '{{ student.user.username }}')" 
                                                        class="block px-4 py-2 text-sm text-purple-600 hover:bg-purple-50">

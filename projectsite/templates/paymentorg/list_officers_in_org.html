@@ -148,8 +148,8 @@
                                             </span>
                                         {% else %}
                                             <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 rounded-full text-xs font-semibold border border-emerald-200 shadow-sm">
-                                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                                                Active
+                                                <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+                                                Officer
                                             </span>
                                         {% endif %}
                                     </td>
@@ -170,6 +170,13 @@
                                                        class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                                                         <i data-lucide="arrow-down-circle" class="w-4 h-4 inline mr-2"></i>
                                                         Demote to Student
+                                                    </a>
+                                                {% endif %}
+                                                {% if officer.is_super_officer and officer.user.id == request.user.id %}
+                                                    <a href="{% url 'officer_step_down' %}" 
+                                                       class="block px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 border-t border-gray-100">
+                                                        <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>
+                                                        Step Down
                                                     </a>
                                                 {% endif %}
                                                 {% if officer.can_make_super_officer and not officer.user.is_superuser %}

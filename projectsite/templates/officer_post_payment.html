@@ -3,94 +3,259 @@
 {% block title %}Post Bulk Payment - UniPay{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center py-5">
-    <div class="col-md-10 col-lg-8">
-        <div class="card border-0 shadow-lg">
-            <div class="card-header bg-success text-white py-4">
-                <div class="d-flex align-items-center">
-                    <div class="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
-                        <i class="fas fa-bullhorn fa-lg text-white"></i>
+<div class="max-w-4xl mx-auto space-y-6">
+    
+    <!-- Gradient Header Card -->
+    <div class="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 rounded-xl p-6 shadow-lg relative overflow-hidden">
+        <!-- Decorative Elements -->
+        <div class="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-transparent"></div>
+        <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 via-orange-500 to-orange-400"></div>
+        
+        <div class="relative z-10">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                        <i data-lucide="megaphone" class="w-6 h-6 text-white"></i>
                     </div>
                     <div>
-                        <h3 class="mb-0 fw-bold">Post Payment to All Students</h3>
-                        <small class="opacity-75">Create payment requests for eligible students</small>
+                        <h1 class="text-2xl font-bold text-white">Post Bulk Payment</h1>
+                        <p class="text-emerald-100">Create payment requests for eligible students</p>
                     </div>
                 </div>
-            </div>
-            <div class="card-body p-4">
-                <div class="alert alert-info shadow-sm mb-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Info:</strong> This will create payment requests for <strong>ALL eligible students</strong> registered to 
-                    <strong>{{ organization.name }}</strong> who haven't paid this fee yet. Students will see these fees on their dashboard and can generate QR codes to pay.
-                </div>
-                
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger shadow-sm mb-4">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            {% for error in form.non_field_errors %}
-                                <p class="mb-0">{{ error }}</p>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label for="{{ form.fee_type_name.id_for_label }}" class="form-label fw-semibold">
-                                <i class="fas fa-tag me-2 text-primary"></i>{{ form.fee_type_name.label }} <span class="text-danger">*</span>
-                            </label>
-                            {{ form.fee_type_name }}
-                            {% if form.fee_type_name.help_text %}
-                                <div class="form-text">{{ form.fee_type_name.help_text }}</div>
-                            {% endif %}
-                            {% for error in form.fee_type_name.errors %}
-                                <div class="text-danger small mt-1">
-                                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label for="{{ form.fee_amount.id_for_label }}" class="form-label fw-semibold">
-                                <i class="fas fa-money-bill-wave me-2 text-success"></i>{{ form.fee_amount.label }} <span class="text-danger">*</span>
-                            </label>
-                            {{ form.fee_amount }}
-                            {% if form.fee_amount.help_text %}
-                                <div class="form-text">{{ form.fee_amount.help_text }}</div>
-                            {% endif %}
-                            {% for error in form.fee_amount.errors %}
-                                <div class="text-danger small mt-1">
-                                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-semibold">
-                            <i class="fas fa-sticky-note me-2 text-info"></i>{{ form.notes.label }}
-                        </label>
-                        {{ form.notes }}
-                        {% for error in form.notes.errors %}
-                            <div class="text-danger small mt-1">
-                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'officer_dashboard' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times me-2"></i>Cancel
-                        </a>
-                        <button type="submit" class="btn btn-success btn-lg shadow-lg">
-                            <i class="fas fa-bullhorn me-2"></i>Post Payment to All Students
-                        </button>
-                    </div>
-                </form>
+                <a href="{% url 'officer_dashboard' %}" 
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-colors font-medium border border-white/30">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Back to Dashboard
+                </a>
             </div>
         </div>
     </div>
+
+    <!-- Info Alert -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+        <div class="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+            <i data-lucide="info" class="w-5 h-5 text-blue-600"></i>
+        </div>
+        <div>
+            <p class="text-blue-800 font-medium">How this works</p>
+            <p class="text-blue-700 text-sm">This will create payment requests for <strong>all eligible students</strong> in <strong>{{ organization.name }}</strong> who haven't paid this fee yet. Students will see these fees on their dashboard and can generate QR codes to pay.</p>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <form method="post" class="divide-y divide-gray-100">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="p-4 bg-red-50 border-b border-red-200">
+                    <div class="flex items-center gap-2 text-red-700">
+                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Fee Details Section -->
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2 bg-emerald-100 rounded-lg">
+                        <i data-lucide="receipt" class="w-5 h-5 text-emerald-600"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold text-gray-900">Fee Details</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.fee_type_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.fee_type_name.label }} <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               name="fee_type_name" 
+                               id="{{ form.fee_type_name.id_for_label }}"
+                               value="{{ form.fee_type_name.value|default:'' }}"
+                               placeholder="e.g., Tuition Fee, Library Fee, etc."
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+                        {% if form.fee_type_name.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.fee_type_name.help_text }}</p>
+                        {% endif %}
+                        {% for error in form.fee_type_name.errors %}
+                            <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.fee_amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.fee_amount.label }} <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₱</span>
+                            <input type="number" 
+                                   name="fee_amount" 
+                                   id="{{ form.fee_amount.id_for_label }}"
+                                   value="{{ form.fee_amount.value|default:'' }}"
+                                   step="0.01"
+                                   min="0.01"
+                                   placeholder="0.00"
+                                   class="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+                        </div>
+                        {% for error in form.fee_amount.errors %}
+                            <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Academic Period Section -->
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold text-gray-900">Academic Period</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.academic_year.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.academic_year.label }} <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               name="academic_year" 
+                               id="{{ form.academic_year.id_for_label }}"
+                               value="{{ form.academic_year.value|default:'' }}"
+                               placeholder="e.g., 2024-2025"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+                        {% if form.academic_year.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.academic_year.help_text }}</p>
+                        {% endif %}
+                        {% for error in form.academic_year.errors %}
+                            <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.semester.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.semester.label }} <span class="text-red-500">*</span>
+                        </label>
+                        <select name="semester" 
+                                id="{{ form.semester.id_for_label }}"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white">
+                            {% for value, label in form.semester.field.choices %}
+                                <option value="{{ value }}" {% if form.semester.value == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% for error in form.semester.errors %}
+                            <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Target Students & Deadline Section -->
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i data-lucide="users" class="w-5 h-5 text-purple-600"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold text-gray-900">Target Students & Deadline</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.applicable_year_level.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.applicable_year_level.label }} <span class="text-red-500">*</span>
+                        </label>
+                        <select name="applicable_year_level" 
+                                id="{{ form.applicable_year_level.id_for_label }}"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white">
+                            {% for value, label in form.applicable_year_level.field.choices %}
+                                <option value="{{ value }}" {% if form.applicable_year_level.value == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.applicable_year_level.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.applicable_year_level.help_text }}</p>
+                        {% endif %}
+                        {% for error in form.applicable_year_level.errors %}
+                            <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.payment_deadline.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.payment_deadline.label }}
+                        </label>
+                        <input type="date" 
+                               name="payment_deadline" 
+                               id="{{ form.payment_deadline.id_for_label }}"
+                               value="{{ form.payment_deadline.value|default:'' }}"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+                        {% if form.payment_deadline.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.payment_deadline.help_text }}</p>
+                        {% endif %}
+                        {% for error in form.payment_deadline.errors %}
+                            <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notes Section -->
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2 bg-amber-100 rounded-lg">
+                        <i data-lucide="file-text" class="w-5 h-5 text-amber-600"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold text-gray-900">Additional Notes</h2>
+                </div>
+                
+                <div>
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ form.notes.label }}
+                    </label>
+                    <textarea name="notes" 
+                              id="{{ form.notes.id_for_label }}"
+                              rows="3"
+                              placeholder="Optional notes for all payments..."
+                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors resize-none">{{ form.notes.value|default:'' }}</textarea>
+                    {% for error in form.notes.errors %}
+                        <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                            <i data-lucide="alert-circle" class="w-4 h-4"></i>{{ error }}
+                        </p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="p-6 bg-gray-50 flex flex-col sm:flex-row gap-3 justify-end">
+                <a href="{% url 'officer_dashboard' %}" 
+                   class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-sm">
+                    <i data-lucide="megaphone" class="w-4 h-4"></i>
+                    Post Payment to All Students
+                </button>
+            </div>
+        </form>
+    </div>
+    
 </div>
 {% endblock %}

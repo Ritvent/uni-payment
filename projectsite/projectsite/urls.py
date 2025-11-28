@@ -67,6 +67,7 @@ urlpatterns = [
     path('officer/scan-qr/', views.OfficerScanQRView.as_view(), name='officer_scan_qr'),
     path('officer/post-bulk-payment/', views.PostBulkPaymentView.as_view(), name='officer_post_bulk_payment'),
     path('officer/void/<int:pk>/', views.VoidPaymentView.as_view(), name='officer_void_payment'),
+    path('officer/step-down/', views.StepDownFromOfficerView.as_view(), name='officer_step_down'),
     
     # Staff/Admin CRUD Routes
     path('staff/organization/create/', views.CreateOrganizationView.as_view(), name='create_organization'),
@@ -101,6 +102,7 @@ urlpatterns = [
     path('staff/payment-requests/<uuid:pk>/', views.PaymentRequestDetailView.as_view(), name='paymentrequest_detail'),
     
     path('staff/payments/', views.PaymentListView.as_view(), name='payment_list'),
+    path('staff/payments/export/', views.ExportPaymentsView.as_view(), name='export_payments'),
     path('staff/payments/<int:pk>/', views.PaymentDetailView.as_view(), name='payment_detail'),
     
     path('staff/receipts/', views.ReceiptListView.as_view(), name='receipt_list'),

@@ -2,7 +2,177 @@
 
 {% block title %}Payment QR Code - UniPay{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Success overlay styles */
+    .success-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(8px);
+    }
+    
+    .success-overlay.show {
+        display: flex;
+        animation: fadeIn 0.4s ease-out;
+    }
+    
+    .success-modal {
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+        animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    .success-icon-ring {
+        width: 120px;
+        height: 120px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 32px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+    }
+    
+    .success-icon-ring svg {
+        width: 56px;
+        height: 56px;
+        stroke: white;
+        fill: none;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+    
+    .checkmark-path {
+        stroke-dasharray: 50;
+        stroke-dashoffset: 50;
+        animation: drawCheck 0.6s ease-out 0.3s forwards;
+    }
+    
+    @keyframes drawCheck {
+        to { stroke-dashoffset: 0; }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes scaleIn {
+        from { transform: scale(0.8) translateY(20px); opacity: 0; }
+        to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+    
+    .float-animation {
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    .confetti {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        animation: confettiFall 4s ease-out forwards;
+        pointer-events: none;
+    }
+    
+    @keyframes confettiFall {
+        0% { transform: translateY(-50px) rotate(0deg) scale(1); opacity: 1; }
+        100% { transform: translateY(100vh) rotate(1080deg) scale(0); opacity: 0; }
+    }
+    
+    .amount-display {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .btn-glass {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-glass:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+    }
+    
+    .btn-solid {
+        background: white;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-solid:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    @media print {
+        header, footer, nav, .no-print, button, a { display: none !important; }
+        .bg-white { box-shadow: none !important; border: none !important; }
+        #qrcode { padding: 0 !important; }
+        .success-overlay { display: none !important; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- Success Overlay -->
+<div id="success-overlay" class="success-overlay">
+    <div class="success-modal">
+        <!-- Animated Check Icon -->
+        <div class="success-icon-ring float-animation">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path class="checkmark-path" d="M5 13l4 4L19 7" />
+            </svg>
+        </div>
+        
+        <!-- Success Text -->
+        <h2 class="text-3xl font-bold text-white mb-3">Payment Successful</h2>
+        <p class="text-white/80 mb-6">{{ payment_request.fee_type.name }}</p>
+        
+        <!-- Amount Card -->
+        <div class="amount-display rounded-2xl px-8 py-5 mb-8 inline-block">
+            <p class="text-white/70 text-sm mb-1">Amount Paid</p>
+            <p class="text-4xl font-bold text-white">₱{{ payment_request.amount|floatformat:2 }}</p>
+        </div>
+        
+        <!-- Countdown -->
+        <p class="text-white/60 text-sm mb-8" id="redirect-message">
+            Redirecting to dashboard in <span id="countdown" class="font-bold text-white">5</span>s
+        </p>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-4 justify-center">
+            <a id="view-receipt-btn" href="#" class="btn-glass px-6 py-3 text-white rounded-xl font-medium inline-flex items-center gap-2">
+                <i data-lucide="file-text" class="w-5 h-5"></i>
+                View Receipt
+            </a>
+            <a href="{% url 'student_dashboard' %}" class="btn-solid px-6 py-3 text-emerald-600 rounded-xl font-semibold inline-flex items-center gap-2">
+                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
 <div class="py-8">
     <div class="max-w-2xl mx-auto">
         <!-- QR Code Card -->
@@ -13,7 +183,7 @@
                     <h1 class="text-xl font-bold text-gray-900">Payment QR Code</h1>
                     <p class="text-gray-500 text-sm">Request: {{ payment_request.request_id|truncatechars:12 }}</p>
                 </div>
-                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                <span id="status-badge" class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
                     {{ payment_request.get_status_display }}
                 </span>
             </div>
@@ -48,16 +218,13 @@
                     </div>
                     
                     <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span class="text-gray-500">Expires</span>
-                        <div class="text-right">
-                            <span class="text-gray-900">{{ payment_request.expires_at|date:"M d, Y" }}</span>
-                            <span class="block text-orange-600 text-sm font-medium">{{ payment_request.expires_at|timesince }} remaining</span>
-                        </div>
+                        <span class="text-gray-500">Status</span>
+                        <span id="status-text" class="text-orange-600 font-medium">Awaiting Payment</span>
                     </div>
                 </div>
 
                 <!-- Instructions -->
-                <div class="bg-blue-50 rounded-lg p-4 mb-6">
+                <div id="instructions-box" class="bg-blue-50 rounded-lg p-4 mb-6">
                     <div class="flex gap-3">
                         <i data-lucide="info" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"></i>
                         <p class="text-blue-800 text-sm">
@@ -96,19 +263,12 @@
         </div>
     </div>
 </div>
-
-<style>
-@media print {
-    header, footer, nav, .no-print, button, a { display: none !important; }
-    .bg-white { box-shadow: none !important; border: none !important; }
-    #qrcode { padding: 0 !important; }
-}
-</style>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
+    // QR Code rendering
     document.addEventListener('DOMContentLoaded', function () {
         function renderQRCode() {
             if (typeof QRCode === 'undefined') return false;
@@ -146,5 +306,149 @@
             link.click();
         }
     }
+
+    // Play success sound
+    function playSuccessSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+            notes.forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + 0.3);
+                }, i * 150);
+            });
+        } catch (e) {
+            console.log('Audio not supported');
+        }
+    }
+
+    // Create confetti effect
+    function createConfetti() {
+        const colors = ['#ffffff', 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)', '#fef3c7', '#d1fae5'];
+        const overlay = document.getElementById('success-overlay');
+        
+        for (let i = 0; i < 60; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.top = '-10px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 0.3 + 's';
+                confetti.style.animationDuration = (Math.random() * 2 + 3) + 's';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                confetti.style.width = (Math.random() * 8 + 4) + 'px';
+                confetti.style.height = (Math.random() * 8 + 4) + 'px';
+                overlay.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 5000);
+            }, i * 40);
+        }
+    }
+
+    // Show success overlay
+    function showSuccessOverlay(paymentId) {
+        const overlay = document.getElementById('success-overlay');
+        const viewReceiptBtn = document.getElementById('view-receipt-btn');
+        const countdownEl = document.getElementById('countdown');
+        
+        // Set the receipt URL
+        if (paymentId) {
+            viewReceiptBtn.href = "/staff/payments/" + paymentId + "/";
+        }
+        
+        // Show overlay
+        overlay.classList.add('show');
+        
+        // Play sound and create confetti
+        playSuccessSound();
+        createConfetti();
+        
+        // Countdown and redirect to dashboard
+        let countdown = 5;
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            countdownEl.textContent = countdown;
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                window.location.href = "{% url 'student_dashboard' %}";
+            }
+        }, 1000);
+    }
+
+    // Poll for payment status
+    let pollInterval;
+    
+    function checkPaymentStatus() {
+        fetch("{% url 'api_request_status' payment_request.request_id %}")
+            .then(response => response.json())
+            .then(data => {
+                console.log('Payment status:', data);
+                
+                if (data.status === 'PAID') {
+                    clearInterval(pollInterval);
+                    
+                    // Update status badge
+                    const badge = document.getElementById('status-badge');
+                    badge.className = 'px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium';
+                    badge.textContent = 'Paid';
+                    
+                    // Update status text
+                    document.getElementById('status-text').textContent = 'Payment Confirmed!';
+                    document.getElementById('status-text').className = 'text-green-600 font-medium';
+                    
+                    // Show success overlay
+                    showSuccessOverlay(data.payment_id);
+                    
+                } else if (data.status === 'EXPIRED' || data.is_expired) {
+                    clearInterval(pollInterval);
+                    
+                    // Update status badge
+                    const badge = document.getElementById('status-badge');
+                    badge.className = 'px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium';
+                    badge.textContent = 'Expired';
+                    
+                    // Update status text
+                    document.getElementById('status-text').textContent = 'Request Expired';
+                    document.getElementById('status-text').className = 'text-red-600 font-medium';
+                    
+                    // Update instructions
+                    document.getElementById('instructions-box').innerHTML = `
+                        <div class="flex gap-3">
+                            <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"></i>
+                            <p class="text-red-800 text-sm">
+                                This payment request has expired. Please generate a new QR code from your dashboard.
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById('instructions-box').className = 'bg-red-50 rounded-lg p-4 mb-6';
+                    
+                    // Reinitialize Lucide icons
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error checking status:', error);
+            });
+    }
+
+    // Start polling every 2 seconds
+    pollInterval = setInterval(checkPaymentStatus, 2000);
+    checkPaymentStatus(); // Check immediately
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        clearInterval(pollInterval);
+    });
 </script>
 {% endblock %}

@@ -1,67 +1,200 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Receipt OR#{{ receipt.or_number }}{% endblock %}
+{% block title %}Receipt OR#{{ receipt.or_number }} - UniPay{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-receipt me-2"></i>Receipt: OR#{{ receipt.or_number }}</h2>
-    <a href="{% url 'receipt_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i>Back to List</a>
-</div>
+<div class="py-6 md:py-8 flex justify-center">
+    <div class="w-full max-w-md px-4 md:px-0">
+        <!-- Receipt Card -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+            <!-- Receipt Header -->
+            <div class="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 p-6 text-white relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-transparent"></div>
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 via-orange-500 to-orange-400"></div>
+                
+                <div class="relative z-10 flex items-center justify-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                        <i data-lucide="receipt" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-lg font-bold">OFFICIAL RECEIPT</h2>
+                        <p class="text-emerald-100 text-xs">UniPay Payment System</p>
+                    </div>
+                </div>
+            </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card shadow mb-4">
-            <div class="card-header card-header-admin">
-                <h4 class="mb-0">Receipt Information</h4>
-            </div>
-            <div class="card-body">
-                <dl class="row">
-                    <dt class="col-sm-4">OR Number:</dt>
-                    <dd class="col-sm-8"><strong>{{ receipt.or_number }}</strong></dd>
-                    
-                    <dt class="col-sm-4">Payment:</dt>
-                    <dd class="col-sm-8">
-                        <a href="{% url 'payment_detail' receipt.payment.pk %}">View Payment Details</a>
-                    </dd>
-                    
-                    <dt class="col-sm-4">Student:</dt>
-                    <dd class="col-sm-8">{{ receipt.payment.student.student_id_number }} - {{ receipt.payment.student.get_full_name }}</dd>
-                    
-                    <dt class="col-sm-4">Organization:</dt>
-                    <dd class="col-sm-8">{{ receipt.payment.organization.name }} ({{ receipt.payment.organization.code }})</dd>
-                    
-                    <dt class="col-sm-4">Amount:</dt>
-                    <dd class="col-sm-8"><strong class="text-success">₱{{ receipt.payment.amount|floatformat:2 }}</strong></dd>
-                    
-                    <dt class="col-sm-4">Email Sent:</dt>
-                    <dd class="col-sm-8">
-                        {% if receipt.email_sent %}
-                            <span class="badge bg-success">Yes</span> - {{ receipt.email_sent_at|date:"F d, Y H:i:s" }}
+            <!-- Receipt Body -->
+            <div class="p-6">
+                <!-- OR Number, Date, Time, Status -->
+                <div class="text-center pb-4 border-b border-gray-100">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Official Receipt</p>
+                    <p class="text-2xl font-bold text-gray-900 font-mono">{{ receipt.or_number }}</p>
+                    <div class="flex justify-center items-center gap-3 mt-2 text-sm text-gray-500">
+                        <span>{{ receipt.created_at|date:"M d, Y" }}</span>
+                        <span>•</span>
+                        <span>{{ receipt.created_at|date:"h:i A" }}</span>
+                        <span>•</span>
+                        {% if receipt.payment.is_void %}
+                        <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">VOIDED</span>
                         {% else %}
-                            <span class="badge bg-secondary">No</span>
+                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold">{{ receipt.payment.status }}</span>
                         {% endif %}
-                    </dd>
-                    
-                    
-                    <dt class="col-sm-4">Created At:</dt>
-                    <dd class="col-sm-8">{{ receipt.created_at|date:"F d, Y H:i:s" }}</dd>
-                </dl>
+                    </div>
+                </div>
+
+                <!-- Amount -->
+                <div class="text-center py-5 border-b border-gray-100">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Amount Paid</p>
+                    <p class="text-4xl font-bold text-emerald-600">₱{{ receipt.payment.amount|floatformat:2 }}</p>
+                    <div class="flex justify-center gap-6 mt-3 text-sm text-gray-600">
+                        <span>Received: <strong class="text-gray-900">₱{{ receipt.payment.amount_received|floatformat:2 }}</strong></span>
+                        <span>Change: <strong class="text-gray-900">₱{{ receipt.payment.change_given|floatformat:2 }}</strong></span>
+                    </div>
+                </div>
+
+                <!-- Details Grid -->
+                <div class="py-6 space-y-4">
+                    <!-- Student -->
+                    <div class="flex justify-between items-start py-2 border-b border-gray-50">
+                        <span class="text-xs text-gray-500 uppercase tracking-wider">Student</span>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-900">{{ receipt.payment.student.get_full_name }}</p>
+                            <p class="text-sm text-gray-500">{{ receipt.payment.student.student_id_number }}</p>
+                            <p class="text-xs text-gray-400">{{ receipt.payment.student.user.email }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Organization -->
+                    <div class="flex justify-between items-start py-2 border-b border-gray-50">
+                        <span class="text-xs text-gray-500 uppercase tracking-wider">Organization</span>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-900">{{ receipt.payment.organization.name }}</p>
+                            <p class="text-sm text-gray-500">{{ receipt.payment.organization.code }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Fee Details -->
+                    <div class="flex justify-between items-start py-2 border-b border-gray-50">
+                        <span class="text-xs text-gray-500 uppercase tracking-wider">Fee Type</span>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-900">{{ receipt.payment.fee_type.name }}</p>
+                            <p class="text-sm text-gray-500">{{ receipt.payment.fee_type.semester }} • {{ receipt.payment.fee_type.academic_year }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <span class="text-xs text-gray-500 uppercase tracking-wider">Payment Method</span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium">
+                            {% if receipt.payment.payment_method == 'CASH' %}
+                            <i data-lucide="banknote" class="w-3.5 h-3.5"></i>
+                            {% elif receipt.payment.payment_method == 'GCASH' %}
+                            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+                            {% else %}
+                            <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
+                            {% endif %}
+                            {{ receipt.payment.get_payment_method_display }}
+                        </span>
+                    </div>
+
+                    <!-- Processed By -->
+                    <div class="flex justify-between items-start py-2 border-b border-gray-50">
+                        <span class="text-xs text-gray-500 uppercase tracking-wider">Processed By</span>
+                        {% if receipt.payment.processed_by %}
+                        <div class="text-right">
+                            <p class="font-medium text-gray-900">{{ receipt.payment.processed_by.user.get_full_name }}</p>
+                            <p class="text-sm text-gray-500">
+                                {% if receipt.payment.processed_by.role %}{{ receipt.payment.processed_by.role }}{% else %}Officer{% endif %}
+                                {% if receipt.payment.processed_by.is_super_officer %}<span class="text-purple-600 text-xs">(Super)</span>{% endif %}
+                            </p>
+                            <p class="text-xs text-gray-400">{{ receipt.payment.processed_by.user.email }}</p>
+                        </div>
+                        {% else %}
+                        <span class="text-gray-400 text-sm">N/A</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email Status -->
+                    <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <span class="text-xs text-gray-500 uppercase tracking-wider">Email Notification</span>
+                        <div class="text-right">
+                            {% if receipt.email_sent %}
+                            <span class="inline-flex items-center gap-1 text-green-600 text-sm font-medium">
+                                <i data-lucide="check-circle" class="w-4 h-4"></i> Sent
+                            </span>
+                            <p class="text-xs text-gray-400">{{ receipt.email_sent_at|date:"M d, Y h:i A" }}</p>
+                            <p class="text-xs text-gray-400">to {{ receipt.payment.student.user.email }}</p>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 text-gray-400 text-sm">
+                                <i data-lucide="x-circle" class="w-4 h-4"></i> Not Sent
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if receipt.payment.is_void %}
+                    <!-- Void Info -->
+                    <div class="bg-red-50 rounded-lg p-4 mt-4">
+                        <p class="text-xs text-red-600 uppercase tracking-wider font-semibold mb-2">Voided</p>
+                        <div class="text-sm text-red-700 space-y-1">
+                            {% if receipt.payment.voided_by %}
+                            <p>By: <strong>{{ receipt.payment.voided_by.user.get_full_name }}</strong></p>
+                            {% endif %}
+                            {% if receipt.payment.voided_at %}
+                            <p>On: {{ receipt.payment.voided_at|date:"M d, Y h:i A" }}</p>
+                            {% endif %}
+                            {% if receipt.payment.void_reason %}
+                            <p>Reason: {{ receipt.payment.void_reason }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if receipt.payment.notes %}
+                    <!-- Notes -->
+                    <div class="bg-amber-50 rounded-lg p-4 mt-4">
+                        <p class="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Notes</p>
+                        <p class="text-sm text-amber-800">{{ receipt.payment.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Footer -->
+                <div class="pt-4 border-t border-gray-100">
+                    <p class="text-xs text-gray-400 text-center mb-4">
+                        Verification: <code class="bg-gray-100 px-1 rounded">{{ receipt.verification_signature|truncatechars:24 }}</code>
+                    </p>
+                    <div class="flex flex-wrap justify-center gap-2">
+                        {% if receipt.receipt_pdf %}
+                        <a href="{{ receipt.receipt_pdf.url }}" target="_blank"
+                           class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all font-medium inline-flex items-center gap-2 text-sm shadow-sm">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Download PDF
+                        </a>
+                        {% endif %}
+                        {% if receipt.receipt_qr %}
+                        <a href="{{ receipt.receipt_qr.url }}" target="_blank"
+                           class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium inline-flex items-center gap-2 text-sm">
+                            <i data-lucide="qr-code" class="w-4 h-4"></i>
+                            View QR
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'payment_detail' receipt.payment.pk %}"
+                           class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium inline-flex items-center gap-2 text-sm">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            Payment Details
+                        </a>
+                        <a href="{% url 'payment_list' %}"
+                           class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium inline-flex items-center gap-2 text-sm">
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            Back
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        {% if receipt.receipt_pdf %}
-        <div class="card shadow">
-            <div class="card-header card-header-admin">
-                <h4 class="mb-0">Receipt Files</h4>
-            </div>
-            <div class="card-body">
-                <p><a href="{{ receipt.receipt_pdf.url }}" class="btn btn-primary" target="_blank"><i class="fas fa-file-pdf me-2"></i>Download PDF</a></p>
-                {% if receipt.receipt_qr %}
-                <p><a href="{{ receipt.receipt_qr.url }}" class="btn btn-info" target="_blank"><i class="fas fa-qrcode me-2"></i>View QR Code</a></p>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

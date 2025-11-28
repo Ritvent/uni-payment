@@ -85,6 +85,12 @@
                                     <span>Students</span>
                                 </a>
                             {% endif %}
+                            {% if user.officer_profile.is_super_officer %}
+                                <a href="{% url 'feetype_list' %}" class="up-nav-link {% if request.resolver_match.url_name == 'feetype_list' or request.resolver_match.url_name == 'feetype_detail' %}active{% endif %}">
+                                    <i data-lucide="tags" class="w-4 h-4"></i>
+                                    <span>Fee Types</span>
+                                </a>
+                            {% endif %}
                             <a href="{% url 'payment_list' %}" class="up-nav-link {% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_detail' %}active{% endif %}">
                                 <i data-lucide="receipt" class="w-4 h-4"></i>
                                 <span>Payments</span>
@@ -197,6 +203,12 @@
                                 <a href="{% url 'list_students_in_org' %}" class="up-dropdown-item rounded-lg {% if request.resolver_match.url_name == 'list_students_in_org' %}bg-emerald-100 text-emerald-700{% endif %}">
                                     <i data-lucide="graduation-cap" class="w-4 h-4"></i>
                                     View Students
+                                </a>
+                            {% endif %}
+                            {% if user.officer_profile.is_super_officer %}
+                                <a href="{% url 'feetype_list' %}" class="up-dropdown-item rounded-lg {% if request.resolver_match.url_name == 'feetype_list' or request.resolver_match.url_name == 'feetype_detail' %}bg-emerald-100 text-emerald-700{% endif %}">
+                                    <i data-lucide="tags" class="w-4 h-4"></i>
+                                    Fee Types
                                 </a>
                             {% endif %}
                             <a href="{% url 'payment_list' %}" class="up-dropdown-item rounded-lg {% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_detail' %}bg-emerald-100 text-emerald-700{% endif %}">

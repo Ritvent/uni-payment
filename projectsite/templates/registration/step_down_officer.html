@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Step Down from Officer Position - UniPay{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    
+    <!-- Warning Header -->
+    <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-6 text-white">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-white/20 rounded-xl">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold">Step Down from Officer Position</h1>
+                <p class="text-amber-100">This action cannot be undone without admin intervention</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Status Card -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Your Current Position</h2>
+        <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-emerald-100 rounded-lg">
+                    <i data-lucide="user" class="w-5 h-5 text-emerald-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Name</p>
+                    <p class="text-gray-900 font-medium">{{ officer.get_full_name }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <i data-lucide="briefcase" class="w-5 h-5 text-blue-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Role</p>
+                    <p class="text-gray-900 font-medium">{{ officer.role|default:"Officer" }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-purple-100 rounded-lg">
+                    <i data-lucide="building-2" class="w-5 h-5 text-purple-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Organization</p>
+                    <p class="text-gray-900 font-medium">{{ organization.name }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-amber-100 rounded-lg">
+                    <i data-lucide="shield" class="w-5 h-5 text-amber-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Status</p>
+                    <p class="text-amber-600 font-semibold">Super Officer</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Information -->
+    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+        <h3 class="text-red-800 font-semibold mb-3 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5"></i>
+            What happens when you step down:
+        </h3>
+        <ul class="space-y-2 text-red-700">
+            <li class="flex items-start gap-2">
+                <i data-lucide="x" class="w-4 h-4 mt-1 flex-shrink-0"></i>
+                <span>You will <strong>lose all officer privileges</strong> including payment processing</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <i data-lucide="x" class="w-4 h-4 mt-1 flex-shrink-0"></i>
+                <span>You will <strong>no longer have access</strong> to the Officer Dashboard</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <i data-lucide="x" class="w-4 h-4 mt-1 flex-shrink-0"></i>
+                <span>You will <strong>no longer be able</strong> to manage fee types or other officers</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <i data-lucide="check" class="w-4 h-4 mt-1 flex-shrink-0 text-green-600"></i>
+                <span>You will <strong>retain your student account</strong> and can continue using UniPay as a student</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <i data-lucide="info" class="w-4 h-4 mt-1 flex-shrink-0 text-blue-600"></i>
+                <span>An administrator can <strong>re-promote you</strong> to officer if needed in the future</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Confirmation Form -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Confirm Step Down</h2>
+        
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div>
+                <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for stepping down <span class="text-red-500">*</span>
+                </label>
+                <textarea 
+                    name="reason" 
+                    id="reason" 
+                    rows="3" 
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="Please provide a reason for stepping down (e.g., graduating, transferring, personal reasons)..."
+                ></textarea>
+            </div>
+            
+            <div>
+                <label for="confirm" class="block text-sm font-medium text-gray-700 mb-1">
+                    Type <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-red-600">STEP DOWN</span> to confirm
+                </label>
+                <input 
+                    type="text" 
+                    name="confirm" 
+                    id="confirm" 
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="STEP DOWN"
+                    autocomplete="off"
+                >
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-3 pt-4">
+                <a href="{% url 'officer_dashboard' %}" 
+                   class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    Step Down from Officer Position
+                </button>
+            </div>
+        </form>
+    </div>
+    
+</div>
+{% endblock %}
