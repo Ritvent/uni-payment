@@ -167,12 +167,12 @@ class OrganizationAdmin(admin.ModelAdmin):
     
     def total_collected_display(self, obj):
         total = obj.get_total_collected()
-        return format_html('<b>₱{:.2f}</b>', total)
+        return format_html('<b>₱{}</b>', f'{total:.2f}')
     total_collected_display.short_description = 'Total Collected (Net)'
     
     def today_collection_display(self, obj):
         total = obj.get_today_collection()
-        return format_html('₱{:.2f}', total)
+        return format_html('₱{}', f'{total:.2f}')
     today_collection_display.short_description = 'Today Collected (Net)'
     
     def pending_requests_display(self, obj):
