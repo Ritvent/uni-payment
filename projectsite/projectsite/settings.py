@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-1!)xo2$_c_p(@h@wz@l2gz+toc3^fuo%i7*wx51-1nqb=i!dpq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1:8000','127.0.0.1:8080', 'localhost', '127.0.0.1','dian1612.pythonanywhere.com', 'unechoed-bobette-fated.ngrok-free.dev']
+ALLOWED_HOSTS = ['127.0.0.1:8000','127.0.0.1:8080', 'localhost', 'palsucsunipay.pythonanywhere.com', 'unechoed-bobette-fated.ngrok-free.dev']
 CSRF_TRUSTED_ORIGINS = [
     'https://unechoed-bobette-fated.ngrok-free.dev',
 ]
@@ -53,7 +53,7 @@ INSTALLED_APPS = [
 ]
 
 
-SITE_ID = 6
+SITE_ID = 7
 AUTHENTICATION_BACKENDS = [
 'django.contrib.auth.backends.ModelBackend',
 'allauth.account.auth_backends.AuthenticationBackend',
