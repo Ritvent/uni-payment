@@ -1982,7 +1982,26 @@ class UpdateOfficerProfileView(LoginRequiredMixin, UpdateView):
             raise Http404("Superuser does not have a manageable Officer profile.")
         return self.request.user.officer_profile
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # If officer also has a student profile, add the student form
+        if hasattr(self.request.user, 'student_profile'):
+            if self.request.POST:
+                context['student_form'] = StudentForm(self.request.POST, instance=self.request.user.student_profile, prefix='student')
+            else:
+                context['student_form'] = StudentForm(instance=self.request.user.student_profile, prefix='student')
+        return context
+    
     def form_valid(self, form):
+        # Save officer form
+        response = super().form_valid(form)
+        
+        # Also save student form if it exists
+        if hasattr(self.request.user, 'student_profile'):
+            student_form = StudentForm(self.request.POST, instance=self.request.user.student_profile, prefix='student')
+            if student_form.is_valid():
+                student_form.save()
+        
         ActivityLog.objects.create(
             user=self.request.user,
             action='profile_updated',
@@ -1990,7 +2009,22 @@ class UpdateOfficerProfileView(LoginRequiredMixin, UpdateView):
             ip_address=self.request.META.get('REMOTE_ADDR')
         )
         messages.success(self.request, 'Profile updated successfully.')
-        return super().form_valid(form)
+        return response
+    
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        
+        # Validate both forms if student profile exists
+        student_form_valid = True
+        if hasattr(request.user, 'student_profile'):
+            student_form = StudentForm(request.POST, instance=request.user.student_profile, prefix='student')
+            student_form_valid = student_form.is_valid()
+        
+        if form.is_valid() and student_form_valid:
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
 
 class PaymentRequestStatusAPI(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):

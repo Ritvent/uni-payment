@@ -667,21 +667,18 @@ class StudentForm(forms.ModelForm):
 class OfficerForm(forms.ModelForm):
     class Meta:
         model = Officer
-        fields = ['role', 'can_process_payments', 'can_void_payments', 'can_generate_reports']
+        fields = ['role']
         widgets = {
             'role': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'e.g., Treasurer, President, Finance Officer'
             }),
-            'can_process_payments': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'can_void_payments': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'can_generate_reports': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'role': 'Role/Position',
-            'can_process_payments': 'Can Process Payments',
-            'can_void_payments': 'Can Void Payments',
-            'can_generate_reports': 'Can Generate Reports',
+        }
+        help_texts = {
+            'role': 'Your position or title in the organization',
         }
 
 class OrganizationForm(forms.ModelForm):
