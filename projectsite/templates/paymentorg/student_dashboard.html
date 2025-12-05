@@ -244,28 +244,28 @@
                             <td class="px-4 py-4">
                                 {% if fee_info.is_paid %}
                                     <a href="{% url 'payment_detail' fee_info.payment.id %}" 
-                                       class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
-                                        <i data-lucide="file-check" class="w-3.5 h-3.5"></i>
+                                       class="inline-flex items-center justify-center gap-1.5 w-32 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
+                                        <i data-lucide="file-check" class="w-3.5 h-3.5 flex-shrink-0"></i>
                                         View Receipt
                                     </a>
                                 {% elif fee_info.has_pending_request and fee_info.has_qr_generated %}
                                     <a href="{% url 'view_payment_request_qr' request_id=fee_info.pending_request.request_id %}" 
-                                       class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-300 to-orange-400 text-gray-900 rounded-lg hover:from-amber-400 hover:to-orange-500 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
-                                        <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                                       class="inline-flex items-center justify-center gap-1.5 w-32 px-3 py-1.5 bg-gradient-to-r from-amber-300 to-orange-400 text-gray-900 rounded-lg hover:from-amber-400 hover:to-orange-500 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
+                                        <i data-lucide="qr-code" class="w-3.5 h-3.5 flex-shrink-0"></i>
                                         View QR
                                     </a>
                                 {% elif fee_info.has_pending_request %}
                                     <a href="{% url 'view_payment_request_qr' request_id=fee_info.pending_request.request_id %}" 
-                                       class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
-                                        <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                                       class="inline-flex items-center justify-center gap-1.5 w-32 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
+                                        <i data-lucide="qr-code" class="w-3.5 h-3.5 flex-shrink-0"></i>
                                         Generate QR
                                     </a>
                                 {% else %}
                                     <form method="post" action="{% url 'quick_generate_qr' fee_info.fee_type.id %}" class="inline">
                                         {% csrf_token %}
                                         <button type="submit" 
-                                                class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
-                                            <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                                                class="inline-flex items-center justify-center gap-1.5 w-32 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all text-xs font-medium shadow-sm whitespace-nowrap">
+                                            <i data-lucide="qr-code" class="w-3.5 h-3.5 flex-shrink-0"></i>
                                             Generate QR
                                         </button>
                                     </form>
