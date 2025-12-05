@@ -260,20 +260,23 @@ h6 { font-size: 0.875rem; }
 
 /* Button Variants */
 .up-btn-primary {
-  background: #16a34a;
-  color: white;
+  background: white;
+  color: #22c370;
+  border: 1.5px solid #22c370;
 }
 
 .up-btn-primary:hover:not(:disabled) {
-  background: #4ade80;
-  color: white;
+  background: white;
+  color: #22c370;
+  border-color: #16a34a;
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 .up-btn-primary:active:not(:disabled) {
-  background: #15803d;
-  color: white;
+  background: #f0fdf4;
+  color: #22c370;
+  border-color: #16a34a;
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
@@ -618,9 +621,10 @@ h6 { font-size: 0.875rem; }
    Navigation / Header
    =================================== */
 .up-header {
-  background: var(--color-card);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(34, 195, 112, 0.2);
+  box-shadow: 0 4px 12px rgba(34, 195, 112, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -649,9 +653,9 @@ h6 { font-size: 0.875rem; }
 }
 
 .up-brand-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  background: var(--gradient-brand);
+  width: 4.5rem;
+  height: 4.5rem;
+  background: white;
   border-radius: var(--radius);
   display: flex;
   align-items: center;
@@ -660,8 +664,8 @@ h6 { font-size: 0.875rem; }
 }
 
 .up-brand-icon img {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 3.75rem;
+  height: 3.75rem;
   object-fit: contain;
   border-radius: var(--radius-full);
 }
@@ -1351,7 +1355,7 @@ h6 { font-size: 0.875rem; }
 }
 
 .up-bg-gradient-fresh {
-  background: linear-gradient(180deg, #f0faf4 0%, #e6f9ef 50%, #fef9e7 100%);
+  background: linear-gradient(180deg, #f0fdf4 0%, #e6f9ef 50%, #d1fae5 100%);
 }
 
 /* New Enhanced Gradients - Green & Yellow Brand */

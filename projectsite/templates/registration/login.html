@@ -1,55 +1,106 @@
 {% extends "base.html" %}
 {% load socialaccount %}
+{% load static %}
 
 {% block title %}Login - UniPay{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center align-items-center min-vh-75 py-5">
-    <div class="col-md-5 col-lg-4">
-        <div class="card shadow-lg border-0">
-            <div class="card-header bg-primary text-white text-center py-4">
-                <div class="mb-3">
-                    <i class="fas fa-university fa-3x"></i>
-                </div>
-                <h2 class="mb-2 fw-bold">UniPay System</h2>
-                <p class="mb-0 small opacity-75">College of Sciences</p>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 flex items-center justify-center px-4 py-12">
+    <!-- Decorative Background Elements -->
+    <div class="absolute top-0 right-0 w-96 h-96 bg-green-200/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-96 h-96 bg-green-300/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+    
+    <div class="w-full max-w-md relative z-10">
+        <!-- Logo Section -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg mb-6">
+                <img src="{% static 'uni.png' %}" alt="UniPay" class="w-16 h-16 object-contain">
             </div>
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <p class="text-muted">Please sign in with your institutional email</p>
-                    <p class="badge bg-info text-dark">@psu.palawan.edu.ph</p>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">UniPay</h1>
+            <p class="text-gray-600">Fee Payment System</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+            <!-- Header with Gradient -->
+            <div class="bg-gradient-to-r from-green-600 to-green-500 px-8 py-8 text-white text-center">
+                <h2 class="text-2xl font-bold mb-2">Welcome Back</h2>
+                <p class="text-blue-100 text-sm">Sign in to access your account</p>
+            </div>
+
+            <!-- Form Section -->
+            <div class="p-8">
+                <div class="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
+                    <p class="text-sm text-gray-700 text-center">
+                        Sign in with your <span class="font-semibold text-green-600">@psu.palawan.edu.ph</span> email
+                    </p>
                 </div>
 
-                <a href="{% provider_login_url 'google' %}" class="btn btn-outline-dark btn-lg w-100 py-3 d-flex align-items-center justify-content-center hover-shadow transition-all">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width: 24px; height: 24px;" class="me-3">
-                    <span class="fw-semibold">Sign in with Google</span>
+                <!-- Google Sign In Button -->
+                <a href="{% provider_login_url 'google' %}" class="group w-full inline-flex items-center justify-center gap-3 px-6 py-4 bg-white border-2 border-gray-300 rounded-xl font-semibold text-gray-900 hover:bg-gray-50 hover:border-gray-400 hover:shadow-lg transition-all duration-200 mb-4">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span>Sign in with Google</span>
                 </a>
-                
+
+                <!-- Error Message -->
                 {% if form.errors %}
-                    <div class="alert alert-danger mt-4 shadow-sm">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        <strong>Login Failed:</strong>
-                        <p class="mb-0 mt-1 small">Please ensure you are using your institutional email.</p>
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                        <div class="flex gap-3">
+                            <div class="flex-shrink-0">
+                                <i data-lucide="alert-circle" class="w-5 h-5 text-red-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-red-900 mb-1">Login Failed</h3>
+                                <p class="text-sm text-red-700">Please ensure you are using your institutional email.</p>
+                            </div>
+                        </div>
                     </div>
                 {% endif %}
+
+                <!-- Divider -->
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">Don't have an account?</span>
+                    </div>
+                </div>
+
+                <!-- Sign Up Link -->
+                <a href="{% url 'select_profile' %}" class="w-full inline-block text-center px-6 py-3 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-200 rounded-xl font-semibold text-green-600 hover:bg-green-100 hover:border-green-300 transition-all duration-200">
+                    Create New Account
+                </a>
             </div>
-            <div class="card-footer bg-light text-center py-3">
-                <small class="text-muted">Restricted to PSU Palawan account holders only.</small>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-8 py-4 border-t border-gray-200 text-center">
+                <p class="text-xs text-gray-600">
+                    Restricted to <span class="font-semibold">PSU Palawan</span> account holders only
+                </p>
+            </div>
+        </div>
+
+        <!-- Security Info -->
+        <div class="mt-6 bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
+            <div class="flex gap-3 items-start">
+                <i data-lucide="shield-check" class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"></i>
+                <div>
+                    <p class="text-sm font-semibold text-gray-900">Your data is secure</p>
+                    <p class="text-xs text-gray-600 mt-1">We use industry-standard encryption to protect your information.</p>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-.min-vh-75 {
-    min-height: 75vh;
-}
-.hover-shadow:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    transform: translateY(-2px);
-}
-.transition-all {
-    transition: all 0.3s ease;
-}
-</style>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script>
+    lucide.createIcons();
+</script>
 {% endblock %}
