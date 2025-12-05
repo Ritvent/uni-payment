@@ -1145,26 +1145,30 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         
         # Calculate statistics based on FILTERED fees
         completed_payments = student.get_completed_payments()
-        
+
         # Filter completed payments by the same criteria
         filtered_completed_payments = completed_payments
         if selected_academic_year:
             filtered_completed_payments = filtered_completed_payments.filter(fee_type__academic_year=selected_academic_year)
-        if selected_semester:  # Only filter if a specific semester is selected
+        if selected_semester:
             filtered_completed_payments = filtered_completed_payments.filter(fee_type__semester=selected_semester)
-        
+
         total_paid = filtered_completed_payments.aggregate(Sum('amount'))['amount__sum'] or 0
         payments_count = filtered_completed_payments.count()
-        
-        # Calculate total amount due (sum of all applicable fees)
+
+        # Get IDs of fees that have been paid
+        paid_fee_ids = filtered_completed_payments.values_list('fee_type_id', flat=True)
+
+        # Calculate UNPAID fees only (fees in applicable_fees but NOT in paid_fee_ids)
+        unpaid_fees = applicable_fees.exclude(id__in=paid_fee_ids)
+        remaining_balance = unpaid_fees.aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # Total amount due = sum of all applicable fees (for display)
         total_amount_due = applicable_fees.aggregate(Sum('amount'))['amount__sum'] or 0
-        
+
         # Calculate pending total strictly from filtered pending requests
         pending_total = filtered_pending_payments.aggregate(Sum('amount'))['amount__sum'] or 0
-        
-        # Remaining balance: Total Fees - Total Paid (user-confirmed requirement)
-        remaining_balance = total_amount_due - total_paid
-        
+
         # Count pending payment requests (waiting for approval)
         pending_count = filtered_pending_payments.count()
         
