@@ -39,51 +39,60 @@
 
     <!-- Quick Stats Grid - 2 columns on mobile, 4 on desktop -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-orange-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="clock" class="w-4 h-4 md:w-5 md:h-5 text-orange-600"></i>
+        <!-- Total Collected -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-blue-100 rounded-lg">
+                    <i data-lucide="banknote" class="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-xs md:text-sm text-gray-600 truncate">Pending</p>
-                    <p class="text-lg md:text-xl font-semibold text-gray-900">{{ pending_requests|length }}</p>
-                </div>
+                <span class="text-green-600 text-xs font-semibold bg-green-50 px-2 py-1 rounded-full">Overall</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Total Collected</p>
+            <p class="text-2xl md:text-3xl font-bold text-gray-900">₱{{ total_collected_system|floatformat:0 }}</p>
+            <p class="text-gray-500 text-xs mt-2">All-time total</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="dollar-sign" class="w-4 h-4 md:w-5 md:h-5 text-green-600"></i>
+
+        <!-- Today's Collection -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-green-100 rounded-lg">
+                    <i data-lucide="trending-up" class="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-xs md:text-sm text-gray-600 truncate">Total</p>
-                    <p class="text-lg md:text-xl font-semibold text-gray-900">₱{{ total_collected_system|floatformat:0 }}</p>
-                </div>
+                <span class="text-green-600 text-xs font-semibold bg-green-50 px-2 py-1 rounded-full">Today</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Today's Collection</p>
+            <p class="text-2xl md:text-3xl font-bold text-gray-900">₱{{ today_collections|floatformat:0 }}</p>
+            <p class="text-gray-500 text-xs mt-2">Collections today</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="activity" class="w-4 h-4 md:w-5 md:h-5 text-blue-600"></i>
+
+        <!-- Pending Requests -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-amber-100 rounded-lg">
+                    <i data-lucide="clock" class="w-5 h-5 md:w-6 md:h-6 text-amber-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-xs md:text-sm text-gray-600 truncate">Today</p>
-                    <p class="text-lg md:text-xl font-semibold text-gray-900">₱{{ today_collections|floatformat:0 }}</p>
-                </div>
+                <span class="text-amber-600 text-xs font-semibold bg-amber-50 px-2 py-1 rounded-full">Pending</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Pending Requests</p>
+            <p class="text-2xl md:text-3xl font-bold text-gray-900">{{ pending_requests|length }}</p>
+            <p class="text-gray-500 text-xs mt-2">Awaiting payment</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="shield" class="w-4 h-4 md:w-5 md:h-5 text-purple-600"></i>
+
+        <!-- Officer Access Level -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-purple-100 rounded-lg">
+                    <i data-lucide="shield-check" class="w-5 h-5 md:w-6 md:h-6 text-purple-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-xs md:text-sm text-gray-600 truncate">Access</p>
-                    <p class="text-lg md:text-xl font-semibold text-gray-900">
-                        {% if officer and officer.can_void_payments %}Full{% elif officer and officer.can_process_payments %}Process{% else %}View{% endif %}
-                    </p>
-                </div>
+                <span class="text-purple-600 text-xs font-semibold bg-purple-50 px-2 py-1 rounded-full">Permissions</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Access Level</p>
+            <p class="text-2xl md:text-3xl font-bold text-gray-900">
+                {% if officer and officer.can_void_payments %}Full{% elif officer and officer.can_process_payments %}Process{% else %}View{% endif %}
+            </p>
+            <p class="text-gray-500 text-xs mt-2">
+                {% if officer and officer.can_void_payments %}Can void payments{% elif officer and officer.can_process_payments %}Can process payments{% else %}View only{% endif %}
+            </p>
         </div>
     </div>
 

@@ -32,49 +32,68 @@
 
     <!-- Summary Stats -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="receipt" class="w-4 h-4 md:w-5 md:h-5 text-blue-600"></i>
+        <!-- Total Fees Due -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-blue-100 rounded-lg">
+                    <i data-lucide="file-text" class="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs md:text-sm text-gray-600">Amount Due</p>
-                    <p class="text-base md:text-xl font-semibold text-gray-900 truncate">₱{{ total_amount_due|floatformat:2 }}</p>
-                </div>
+                <span class="text-blue-600 text-xs font-semibold bg-blue-50 px-2 py-1 rounded-full">Outstanding</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Total Fees</p>
+            <p class="text-2xl md:text-3xl font-bold text-gray-900">₱{{ total_amount_due|floatformat:0 }}</p>
+            <p class="text-gray-500 text-xs mt-2">All applicable fees</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-emerald-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="check-circle" class="w-4 h-4 md:w-5 md:h-5 text-emerald-600"></i>
+
+        <!-- Total Paid -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-emerald-100 rounded-lg">
+                    <i data-lucide="check-circle-2" class="w-5 h-5 md:w-6 md:h-6 text-emerald-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs md:text-sm text-gray-600">Total Paid</p>
-                    <p class="text-base md:text-xl font-semibold text-emerald-600 truncate">₱{{ total_paid|floatformat:2 }}</p>
-                </div>
+                <span class="text-emerald-600 text-xs font-semibold bg-emerald-50 px-2 py-1 rounded-full">Completed</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Total Paid</p>
+            <p class="text-2xl md:text-3xl font-bold text-emerald-600">₱{{ total_paid|floatformat:0 }}</p>
+            {% if payments_count > 0 %}
+            <p class="text-gray-500 text-xs mt-2">{{ payments_count }} payment{{ payments_count|pluralize }}</p>
+            {% else %}
+            <p class="text-gray-500 text-xs mt-2">No payments yet</p>
+            {% endif %}
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-orange-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="wallet" class="w-4 h-4 md:w-5 md:h-5 text-orange-700"></i>
+
+        <!-- Remaining Balance -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 {% if remaining_balance > 0 %}bg-orange-100{% else %}bg-green-100{% endif %} rounded-lg">
+                    <i data-lucide="wallet" class="w-5 h-5 md:w-6 md:h-6 {% if remaining_balance > 0 %}text-orange-600{% else %}text-green-600{% endif %} flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs md:text-sm text-gray-600">Balance</p>
-                    <p class="text-base md:text-xl font-semibold truncate {% if remaining_balance > 0 %}text-orange-700{% else %}text-emerald-600{% endif %}">₱{{ remaining_balance|floatformat:2 }}</p>
-                </div>
+                <span class="{% if remaining_balance > 0 %}text-orange-600 bg-orange-50{% else %}text-green-600 bg-green-50{% endif %} text-xs font-semibold px-2 py-1 rounded-full">
+                    {% if remaining_balance > 0 %}Due{% else %}Settled{% endif %}
+                </span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Amount Remaining</p>
+            <p class="text-2xl md:text-3xl font-bold {% if remaining_balance > 0 %}text-orange-600{% else %}text-emerald-600{% endif %}">₱{{ remaining_balance|floatformat:0 }}</p>
+            <p class="text-gray-500 text-xs mt-2">
+                {% if remaining_balance > 0 %}
+                    You still owe this amount
+                {% else %}
+                    All fees settled
+                {% endif %}
+            </p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-100">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="p-1.5 md:p-2 bg-violet-100 rounded-lg flex-shrink-0">
-                    <i data-lucide="clock" class="w-4 h-4 md:w-5 md:h-5 text-violet-600"></i>
+
+        <!-- Pending Requests -->
+        <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="p-2 md:p-3 bg-amber-100 rounded-lg">
+                    <i data-lucide="hourglass" class="w-5 h-5 md:w-6 md:h-6 text-amber-600 flex-shrink-0"></i>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs md:text-sm text-gray-600">Pending</p>
-                    <p class="text-base md:text-xl font-semibold text-gray-900">{{ pending_count }}</p>
-                </div>
+                <span class="text-amber-600 text-xs font-semibold bg-amber-50 px-2 py-1 rounded-full">Awaiting</span>
             </div>
+            <p class="text-gray-600 text-xs md:text-sm font-medium mb-1">Pending Approval</p>
+            <p class="text-2xl md:text-3xl font-bold text-gray-900">{{ pending_count }}</p>
+            <p class="text-gray-500 text-xs mt-2">Fee{{ pending_count|pluralize }} awaiting approval</p>
         </div>
     </div>
 
