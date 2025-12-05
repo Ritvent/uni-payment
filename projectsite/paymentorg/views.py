@@ -1103,8 +1103,6 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         if expired_requests.exists():
             expired_requests.update(status='EXPIRED')
         
-        pending_payments = student.payment_requests.filter(status='PENDING').order_by('-created_at')
-        
         # Two-tiered fee system: Get ALL applicable fees for this student (before any filtering)
         # This includes the academic year filter already applied by get_applicable_fees()
         base_applicable_fees = student.get_applicable_fees()
@@ -1124,6 +1122,9 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         if not selected_academic_year and academic_year_choices:
             selected_academic_year = academic_year_choices[0]
         
+        # Get pending payments - will be filtered based on selected filters
+        pending_payments = student.payment_requests.filter(status='PENDING').order_by('-created_at')
+        
         # Apply filters to get final applicable fees
         applicable_fees = base_applicable_fees.order_by('-created_at')  # Most recently posted first
         
@@ -1134,6 +1135,13 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         # Apply semester filter - when empty string is selected, show ALL semesters
         if selected_semester:  # Only filter if a specific semester is selected
             applicable_fees = applicable_fees.filter(semester=selected_semester)
+        
+        # Filter pending payments by the same criteria
+        filtered_pending_payments = pending_payments
+        if selected_academic_year:
+            filtered_pending_payments = filtered_pending_payments.filter(fee_type__academic_year=selected_academic_year)
+        if selected_semester:  # Only filter if a specific semester is selected
+            filtered_pending_payments = filtered_pending_payments.filter(fee_type__semester=selected_semester)
         
         # Calculate statistics based on FILTERED fees
         completed_payments = student.get_completed_payments()
@@ -1163,7 +1171,7 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
             payment = completed_payments.filter(fee_type=fee).first()
             
             # Check if student has a VALID pending request for this fee (not expired)
-            pending_request = pending_payments.filter(fee_type=fee).first()
+            pending_request = filtered_pending_payments.filter(fee_type=fee).first()
             
             # Double-check the pending request hasn't expired (in case of race condition)
             has_valid_pending = False
@@ -1202,7 +1210,7 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         
         context.update({
             'student': student,
-            'pending_payments': pending_payments,
+            'pending_payments': filtered_pending_payments,
             'completed_payments': filtered_completed_payments.order_by('-created_at')[:5],
             'total_amount_due': total_amount_due,
             'total_paid': total_paid,
