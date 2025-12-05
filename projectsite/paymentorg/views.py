@@ -1131,8 +1131,8 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         if selected_academic_year:
             applicable_fees = applicable_fees.filter(academic_year=selected_academic_year)
         
-        # Apply semester filter
-        if selected_semester:
+        # Apply semester filter - when empty string is selected, show ALL semesters
+        if selected_semester:  # Only filter if a specific semester is selected
             applicable_fees = applicable_fees.filter(semester=selected_semester)
         
         # Calculate statistics based on FILTERED fees
@@ -1142,7 +1142,7 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
         filtered_completed_payments = completed_payments
         if selected_academic_year:
             filtered_completed_payments = filtered_completed_payments.filter(fee_type__academic_year=selected_academic_year)
-        if selected_semester:
+        if selected_semester:  # Only filter if a specific semester is selected
             filtered_completed_payments = filtered_completed_payments.filter(fee_type__semester=selected_semester)
         
         total_paid = filtered_completed_payments.aggregate(Sum('amount'))['amount__sum'] or 0
