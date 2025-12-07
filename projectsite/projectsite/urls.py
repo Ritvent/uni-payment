@@ -27,7 +27,6 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('pwa.urls')),
     path('accounts/', include('allauth.urls')),
     path('', views.HomePageView.as_view(), name='home'),
     path('login/', views.CustomLoginView.as_view(), name='login'),
@@ -117,4 +116,6 @@ urlpatterns = [
     
     path('staff/activity-logs/', views.ActivityLogListView.as_view(), name='activitylog_list'),
     path('staff/org/<str:code>/dashboard/', views.AdminOrganizationDashboardView.as_view(), name='admin_org_dashboard'),
+    
+    path('', include('pwa.urls')),
 ]

@@ -32,6 +32,8 @@ DEBUG = True
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'palsucsunipay.pythonanywhere.com', 'unechoed-bobette-fated.ngrok-free.dev']
 CSRF_TRUSTED_ORIGINS = [
     'https://unechoed-bobette-fated.ngrok-free.dev',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
 ]
 
 # Application definitionpip install django-allauth
@@ -99,39 +101,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'projectsite.wsgi.application'
-
-# PWA Configuration
-PWA_APP_NAME = 'UniPay'
-PWA_APP_DESCRIPTION = 'Streamlined Fee Payment System for PSU Palawan'
-PWA_APP_THEME_COLOR = '#22c370'
-PWA_APP_BACKGROUND_COLOR = '#ffffff'
-PWA_APP_DISPLAY = 'standalone'
-PWA_APP_SCOPE = '/'
-PWA_APP_ORIENTATION = 'portrait-primary'
-PWA_APP_START_URL = '/'
-PWA_APP_STATUS_BAR_COLOR = 'default'
-PWA_APP_ICONS = [
-    {
-        'src': '/static/uni.png',
-        'sizes': '192x192',
-        'type': 'image/png',
-        'purpose': 'any',
-    },
-    {
-        'src': '/static/uni.png',
-        'sizes': '512x512',
-        'type': 'image/png',
-        'purpose': 'maskable',
-    },
-]
-PWA_APP_SCREENSHOTS = [
-    {
-        'src': '/static/uni.png',
-        'sizes': '540x720',
-        'type': 'image/png',
-    },
-]
-PWA_SERVICE_WORKER_PATH = os.path.join(BASE_DIR, 'static', 'js', 'service-worker.js')
 
 
 # Database
@@ -206,10 +175,6 @@ ACCOUNT_SIGNUP_FIELDS = [
 "password1*",
 "password2*",
 ]
-
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
 
 # Allauth Configuration
 ACCOUNT_ADAPTER = 'projectsite.adapter.MyAccountAdapter'
@@ -295,4 +260,4 @@ PWA_APP_ICONS_APPLE = [
     }
 ]
 PWA_APP_DIR = 'ltr'
-PWA_SERVICE_WORKER_PATH = os.path.join(BASE_DIR, 'static/js', 'serviceworker.js')
+PWA_SERVICE_WORKER_PATH = os.path.join(BASE_DIR, 'static/js', 'service-worker.js')
