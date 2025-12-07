@@ -32,8 +32,11 @@ DEBUG = True
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'palsucsunipay.pythonanywhere.com', 'unechoed-bobette-fated.ngrok-free.dev']
 CSRF_TRUSTED_ORIGINS = [
     'https://unechoed-bobette-fated.ngrok-free.dev',
+    'http://unechoed-bobette-fated.ngrok-free.dev',
     'http://localhost:8080',
     'http://127.0.0.1:8080',
+    'https://localhost:8080',
+    'https://127.0.0.1:8080',
 ]
 
 # Application definitionpip install django-allauth
@@ -175,6 +178,11 @@ ACCOUNT_SIGNUP_FIELDS = [
 "password1*",
 "password2*",
 ]
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+
 
 # Allauth Configuration
 ACCOUNT_ADAPTER = 'projectsite.adapter.MyAccountAdapter'
