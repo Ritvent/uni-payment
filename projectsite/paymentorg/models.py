@@ -814,18 +814,13 @@ class PaymentRequest(BaseModel):
         return f"{self.student.student_id_number} - {self.fee_type.name} - ₱{self.amount}"
 
     def is_expired(self):
-        """Check if payment request has expired"""
-        return timezone.now() > self.expires_at and self.status == 'PENDING'
+        """Expiration disabled: payment requests do not expire."""
+        return False
 
     @classmethod
-    def expire_old_requests(cls):
-        """Mark expired pending requests as expired"""
-        expired = cls.objects.filter(
-            status='PENDING',
-            expires_at__lt=timezone.now()
-        )
-        count = expired.update(status='EXPIRED')
-        return count
+    def mark_expired_pending(cls):
+        """Expiration disabled: no-op."""
+        return 0
 
     def mark_as_paid(self):
         """Update status to paid"""
@@ -840,10 +835,9 @@ class PaymentRequest(BaseModel):
 
     def get_time_remaining(self):
         """Get human-readable time remaining"""
-        from django.utils.timesince import timeuntil
-        if self.status == 'PENDING' and not self.is_expired():
-            return timeuntil(self.expires_at, timezone.now())
-        return "Expired" if self.is_expired() else "Completed"
+        if self.status == 'PENDING':
+            return "No Expiration"
+        return "Completed"
 
 
 class Payment(BaseModel):

@@ -1096,12 +1096,7 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
             messages.error(self.request, "You don't have a student profile.")
             return redirect('officer_dashboard')
         
-        expired_requests = student.payment_requests.filter(
-            status='PENDING', 
-            expires_at__lt=timezone.now()
-        )
-        if expired_requests.exists():
-            expired_requests.update(status='EXPIRED')
+        # Expiration disabled: do not auto-expire pending requests
         
         # Two-tiered fee system: Get ALL applicable fees for this student (before any filtering)
         # This includes the academic year filter already applied by get_applicable_fees()
@@ -1180,22 +1175,12 @@ class StudentDashboardView(StudentRequiredMixin, TemplateView):
             # Check if student has paid this fee (from filtered payments)
             payment = filtered_completed_payments.filter(fee_type=fee).first()
             
-            # Check if student has a VALID pending request for this fee (not expired)
+            # Check if student has a pending request for this fee
             pending_request = filtered_pending_payments.filter(fee_type=fee).first()
             
-            # Double-check the pending request hasn't expired (in case of race condition)
-            has_valid_pending = False
-            has_qr_generated = False
-            if pending_request:
-                if pending_request.expires_at > timezone.now():
-                    has_valid_pending = True
-                    # Check if QR signature has been generated (student clicked "Generate QR")
-                    has_qr_generated = bool(pending_request.qr_signature)
-                else:
-                    # Mark as expired if somehow it slipped through
-                    pending_request.status = 'EXPIRED'
-                    pending_request.save()
-                    pending_request = None
+            # Expiration disabled: any pending request remains valid
+            has_valid_pending = bool(pending_request)
+            has_qr_generated = bool(pending_request.qr_signature) if pending_request else False
             
             fee_info = {
                 'fee_type': fee,
@@ -1303,7 +1288,8 @@ class GenerateQRPaymentView(StudentRequiredMixin, CreateView):
         payment_request.organization = fee_type.organization
         payment_request.amount = fee_type.amount
         payment_request.payment_method = 'CASH'  # default payment method(for now)
-        payment_request.expires_at = timezone.now() + timedelta(minutes=15)
+        # Expiration disabled
+        payment_request.expires_at = timezone.now()
         payment_request.qr_signature = create_signature(str(payment_request.request_id))
         payment_request.save()
         
@@ -1353,7 +1339,8 @@ class QuickGenerateQRView(StudentRequiredMixin, View):
                 fee_type=fee_type,
                 amount=fee_type.amount,
                 payment_method='CASH',
-                expires_at=timezone.now() + timedelta(minutes=15),
+                # Expiration disabled
+                expires_at=timezone.now(),
                 qr_signature=create_signature(uuid.uuid4().hex[:12])
             )
             
@@ -1395,11 +1382,7 @@ class PaymentRequestDetailView(StudentRequiredMixin, TemplateView):
         except ValueError:
             raise Http404("Invalid Payment Request ID.")
         
-        if payment_request.is_expired():
-            payment_request.status = 'EXPIRED'
-            payment_request.save()
-            messages.error(self.request, "This payment request has expired.")
-            return redirect('student_dashboard')
+        # Expiration disabled
         
         # if qr signature is empty, generate it
         if not payment_request.qr_signature:
@@ -1426,11 +1409,7 @@ class ViewPaymentRequestQRView(StudentRequiredMixin, View):
         except ValueError:
             raise Http404("Invalid Payment Request ID.")
         
-        if payment_request.is_expired():
-            payment_request.status = 'EXPIRED'
-            payment_request.save()
-            messages.error(request, "This payment request has expired.")
-            return redirect('student_dashboard')
+        # Expiration disabled
         
         # if qr signature is empty, generate it
         if not payment_request.qr_signature:
@@ -1460,9 +1439,7 @@ class ShowPaymentQRView(StudentRequiredMixin, TemplateView):
         except ValueError:
             raise Http404("Invalid Payment Request ID.")
             
-        if payment_request.is_expired():
-            payment_request.status = 'EXPIRED'
-            payment_request.save()
+        # Expiration disabled
             
         context['payment_request'] = payment_request
         context['qr_data'] = f"PAYMENT_REQUEST|{payment_request.request_id}|{payment_request.qr_signature}"
@@ -1597,11 +1574,7 @@ class ProcessPaymentRequestView(OfficerRequiredMixin, View):
             messages.error(self.request, f"This request is already {payment_request.status}. Cannot be processed.")
             return None
 
-        if payment_request.is_expired():
-            payment_request.status = 'EXPIRED'
-            payment_request.save()
-            messages.error(self.request, "This request has expired.")
-            return None
+        # Expiration disabled
             
         return payment_request
 

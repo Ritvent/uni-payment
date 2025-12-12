@@ -215,18 +215,18 @@ class FeeTypeAdmin(admin.ModelAdmin):
 class PaymentRequestAdmin(admin.ModelAdmin):
     list_display = (
         'request_id', 'student_info', 'organization', 'fee_type',
-        'amount', 'status_display', 'created_at', 'expires_at', 'is_expired_display'
+        'amount', 'status_display', 'created_at'
     )
     list_display_links = ('request_id',)
     list_filter = ('status', 'organization', 'created_at', 'is_active')
     search_fields = ('request_id', 'student__student_id_number', 'student__last_name', 'organization__code')
     readonly_fields = (
         'request_id', 'student', 'organization', 'fee_type',
-        'qr_signature', 'created_at', 'updated_at', 'expires_at', 'paid_at',
+        'qr_signature', 'created_at', 'updated_at', 'paid_at',
         'amount', 'status'
     )
     list_per_page = 50
-    actions = ['mark_as_cancelled_action', 'mark_as_expired_action']
+    actions = ['mark_as_cancelled_action']
     
     # Allow deletion only for superusers
     def has_delete_permission(self, request, obj=None):
@@ -243,14 +243,7 @@ class PaymentRequestAdmin(admin.ModelAdmin):
         return f"{obj.student.student_id_number} - {obj.student.get_full_name()}"
     student_info.short_description = 'Student'
     
-    def is_expired_display(self, obj):
-        expired = obj.is_expired()
-        status = 'Yes' if expired else 'No'
-        color = 'red' if expired else 'green'
-        if obj.status != 'PENDING':
-            return 'N/A'
-        return format_html('<span style="color: {};">{}</span>', color, status)
-    is_expired_display.short_description = 'Expired'
+    # Expiration disabled; remove expired indicator
     
     def status_display(self, obj):
         color_map = {
@@ -271,10 +264,7 @@ class PaymentRequestAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} payment requests marked as CANCELLED.", messages.SUCCESS)
     mark_as_cancelled_action.short_description = "Mark selected as CANCELLED"
     
-    def mark_as_expired_action(self, request, queryset):
-        updated = queryset.filter(status='PENDING').update(status='EXPIRED')
-        self.message_user(request, f"{updated} payment requests marked as EXPIRED.", messages.SUCCESS)
-    mark_as_expired_action.short_description = "Mark selected as EXPIRED"
+    # Expiration disabled; remove expired action
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
@@ -292,7 +282,7 @@ class PaymentAdmin(admin.ModelAdmin):
         return False
     
     def has_delete_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
         
     def student_info(self, obj):
         return f"{obj.student.student_id_number} - {obj.student.get_full_name()}"
@@ -338,7 +328,7 @@ class ActivityLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
 
     def description_short(self, obj):
         return (obj.description[:75] + "...") if len(obj.description) > 75 else obj.description
