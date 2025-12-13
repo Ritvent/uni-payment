@@ -1340,7 +1340,7 @@ class GenerateQRPaymentView(StudentRequiredMixin, CreateView):
             self.request, 
             f'QR code generated! Present this at the {fee_type.organization.code} booth.'
         )
-        return redirect('show_payment_qr', request_id=payment_request.request_id)
+        return redirect('view_payment_request_qr', request_id=payment_request.request_id)
 
 class QuickGenerateQRView(StudentRequiredMixin, View):
     """Quick QR generation from dashboard - directly creates payment request for a specific fee"""
@@ -1392,7 +1392,7 @@ class QuickGenerateQRView(StudentRequiredMixin, View):
                 f'QR code generated! Present this at the {fee_type.organization.code} booth.'
             )
             # Redirect directly to QR page
-            return redirect('show_payment_qr', request_id=payment_request.request_id)
+            return redirect('view_payment_request_qr', request_id=payment_request.request_id)
             
         except Exception as e:
             messages.error(request, f"Error generating QR code: {str(e)}")
