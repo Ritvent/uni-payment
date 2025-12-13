@@ -357,6 +357,46 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
     
+    <!-- Service Worker Registration with Error Handling -->
+    <script>
+        // Register service worker with proper error handling and logging
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/js/service-worker.js')
+                    .then((registration) => {
+                        console.log('✓ Service Worker registered successfully:', registration);
+                        
+                        // Check for updates periodically
+                        setInterval(() => {
+                            registration.update().catch(err => {
+                                console.warn('Service Worker update check failed:', err);
+                            });
+                        }, 60000); // Check every minute
+                    })
+                    .catch((error) => {
+                        console.error('✗ Service Worker registration failed:', error);
+                    });
+                
+                // Log any controller changes
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('✓ Service Worker controller changed - new version activated');
+                });
+            });
+        } else {
+            console.warn('Service Workers not supported in this browser');
+        }
+        
+        // Monitor network status
+        if (navigator.onLine !== undefined) {
+            window.addEventListener('online', () => {
+                console.log('✓ Back online');
+            });
+            window.addEventListener('offline', () => {
+                console.log('⚠ Gone offline');
+            });
+        }
+    </script>
+
     <!-- Scripts -->
     <script>
         // Initialize Lucide icons with retry
