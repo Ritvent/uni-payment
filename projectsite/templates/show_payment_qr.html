@@ -5,6 +5,39 @@
 {% block extra_head %}
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" onload="initQRCode()" onerror="loadQRCodeFallback()"></script>
     <style>
+        /* QR Code Container - with padding for downloads */
+        #qrcode {
+            padding: 30px !important;
+            background: white !important;
+            display: inline-block !important;
+        }
+
+        /* Print styles for QR code download */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .qr-print-container, .qr-print-container * {
+                visibility: visible;
+            }
+            .qr-print-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 40px;
+                background: white;
+                page-break-inside: avoid;
+            }
+            #qrcode {
+                padding: 40px !important;
+                border: 3px solid #000 !important;
+                display: block !important;
+                margin: 20px auto !important;
+            }
+        }
+        
         /* Success overlay styles */
         .success-overlay {
             position: fixed;
@@ -185,7 +218,24 @@
                 <p class="text-muted">For: <b>{{ payment_request.fee_type.name }}</b> (₱{{ payment_request.amount|floatformat:2 }})</p>
                 <hr>
                 
-                <div id="qrcode" class="my-4 mx-auto border border-3 p-2 rounded" style="width:220px; height:220px; border-color: var(--green-primary) !important;">
+                <!-- QR Code Container with Print-friendly padding -->
+                <div class="qr-print-container">
+                    <div style="text-align: center; padding: 20px; background: white;">
+                        <h5 style="margin-top: 0;">Payment QR Code</h5>
+                        <p style="font-size: 14px; color: #666; margin: 10px 0;">{{ payment_request.organization.name }}</p>
+                        
+                        <div id="qrcode" class="my-4 mx-auto border border-3 p-4 rounded" style="width:220px; height:220px; border-color: var(--green-primary) !important; display: inline-block;">
+                        </div>
+                        
+                        <p style="font-size: 12px; color: #666; margin: 10px 0;">
+                            <strong>Amount:</strong> ₱{{ payment_request.amount|floatformat:2 }}<br>
+                            <strong>Fee:</strong> {{ payment_request.fee_type.name }}<br>
+                            <strong>Valid Until:</strong> {{ payment_request.expires_at|date:"M j, Y" }}
+                        </p>
+                        <p style="font-size: 11px; color: #999; margin-top: 15px;">
+                            Present this QR code at the {{ payment_request.organization.code }} booth
+                        </p>
+                    </div>
                 </div>
                 
                 <p class="text-muted small mb-1">
@@ -194,6 +244,7 @@
                 <div id="time-remaining" class="text-danger fw-bold fs-5"></div>
                 
                 <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary mt-3"><i class="fas fa-arrow-left me-2"></i>Back to Dashboard</a>
+                <button onclick="window.print()" class="btn btn-success mt-3"><i class="fas fa-download me-2"></i>Download QR</button>
             </div>
         </div>
     </div>
